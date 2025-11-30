@@ -1,3 +1,5 @@
+use crossterm::event::{KeyEvent, KeyModifiers};
+
 pub struct Util {}
 
 impl Util {
@@ -29,5 +31,4 @@ impl Util {
 
         format!("{:.2} {postfix}", res)
     }
-
 }

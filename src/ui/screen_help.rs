@@ -5,30 +5,37 @@ use ratatui::prelude::{Line, Stylize, Text, Widget};
 use ratatui::symbols::border;
 use ratatui::widgets::{Block, Paragraph};
 use ratatui::Frame;
-use crate::app::KeyEventHandler;
+use crate::app::{KeyEventHandler, Renderable};
+use crate::ui::view::view_key_bindings::KeyBindingView;
 
 #[derive(Default, Clone, Copy)]
 pub struct HelpScreen {}
 
+impl Renderable for HelpScreen {
+    fn render(&mut self, frame: &mut Frame, args: Vec<usize>) {
+        frame.render_widget(*self, frame.area());
+    }
+}
+
 impl Widget for HelpScreen {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let title = Line::from(" Test App ".bold());
-        let title_bottom = Line::from(vec![
-            " Quit ".into(),
-            "[Q] ".blue().bold()
-        ]);
+        let title = Line::from(" Help ".bold());
+        let mut key_bindings = KeyBindingView::default();
+        key_bindings
+            .add(KeyBindingView::home())
+            .add(KeyBindingView::quit());
         let body = Text::from(vec![
             Line::from(vec![
-                "Help Screen".into()
+                "All available keybindings are shown on the bottom of each screen.".into()
             ])
         ]);
-        let main_block = Block::bordered()
+        let block = Block::bordered()
             .title(title.centered())
-            .title_bottom(title_bottom.centered())
+            .title_bottom(key_bindings.items_as_line().centered())
             .border_set(border::THICK);
         Paragraph::new(body)
             .centered()
-            .block(main_block)
+            .block(block)
             .render(area, buf);
     }
 }

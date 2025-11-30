@@ -1,10 +1,11 @@
 use std::process::Command;
+use crate::dto::Torrent;
 
 #[derive(Default, Clone, Copy)]
 pub struct Service {}
 
-impl Service {
 
+impl Service {
     pub fn transmission_daemon_is_active(&self) -> bool {
         let status_command = Command::new("sh")
             .arg("-c")
@@ -66,12 +67,17 @@ impl Service {
         Self::run_command(format!("transmission-remote -j -t {tor_id} -it"))
     }
 
+    pub fn torrent_location(&self, tor: &Torrent) -> Vec<String> {
+        Self::run_command(format!("xdg-open {}", tor.download_dir))
+    }
+
     fn run_command(command: String) -> Vec<String> {
+        let cmd = command.clone();
         let status_command = Command::new("sh")
             .arg("-c")
             .arg(command)
             .output()
-            .expect("failed to execute `transmission-remote -j -t <torrent-id> -f`")
+            .expect(format!("failed to execute `{}`", cmd).as_str())
             .stdout;
 
         vec![String::from_utf8(status_command).unwrap_or_default()]

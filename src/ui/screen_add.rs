@@ -1,17 +1,14 @@
+use crate::app::{KeyEventHandler, Renderable};
+use crate::service::Service;
+use crate::ui::view::view_key_bindings::{KeyBindingView, KeyBindingItemView};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
-use ratatui::buffer::Buffer;
-use ratatui::Frame;
-use ratatui::layout::{Constraint, Direction, Flex, Layout, Rect, Spacing};
-use ratatui::prelude::{Color, Line, Style, Stylize, Text, Widget};
+use ratatui::layout::{Constraint, Flex, Layout};
+use ratatui::prelude::{Line, Stylize};
 use ratatui::symbols::border;
-use ratatui::text::ToLine;
 use ratatui::widgets::{Block, Paragraph};
+use ratatui::Frame;
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
-use crate::app::KeyEventHandler;
-use crate::dto::Torrent;
-use crate::mapper::Mapper;
-use crate::service::Service;
 
 #[derive(Clone)]
 pub struct AddScreen {
@@ -23,20 +20,20 @@ impl AddScreen {
     pub fn new(service: Service) -> Self {
         Self { input: Input::new(String::default()), service }
     }
+}
 
-    pub fn render(&self, frame: &mut Frame) {
+impl Renderable for AddScreen {
+    fn render(&mut self, frame: &mut Frame, args: Vec<usize>) {
         // frame
         let title = Line::from(" Add torrent ".bold());
-        let title_bottom = Line::from(vec![
-            " Add ".into(),
-            "[Enter]".gray().bold(),
-            " | ".gray(),
-            "Cancel ".into(),
-            "[Esc] ".gray().bold()
-        ]);
+        let mut key_bindings = KeyBindingView::default();
+        key_bindings
+            .add(KeyBindingView::action("Add"))
+            .add(KeyBindingView::cancel())
+            .add(KeyBindingView::quit());
         let main_block = Block::bordered()
             .title(title.centered())
-            .title_bottom(title_bottom.centered())
+            .title_bottom(key_bindings.items_as_line().centered())
             .border_set(border::THICK);
         let main_frame = Paragraph::new("")
             .centered()
@@ -53,7 +50,7 @@ impl AddScreen {
         let width = input_area.width.max(3) - 3;
         let scroll = self.input.visual_scroll(width as usize);
         let title = Line::from(vec![
-            "Local filepath".bold(),
+            " Local filepath".bold(),
             " or ".gray(),
             "magnet link ".bold()
         ]);

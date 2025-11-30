@@ -108,6 +108,19 @@ pub struct Torrent {
     pub webseeds_sending_to_us: i64,
 }
 
+impl Torrent {
+
+    pub fn percentage_done(&self) -> f64 {
+        if self.left_until_done == 0 {
+            return 100f64
+        }
+
+        let left_undone: f64 = self.left_until_done as f64;
+        let total_size: f64 = self.size_when_done as f64;
+        (100f64 - 100f64*left_undone/total_size) % 100f64
+    }
+}
+
 #[derive(Default, Serialize, Deserialize)]
 #[serde(default)] // automatically use a default value when none is present in the data
 pub struct Peer {

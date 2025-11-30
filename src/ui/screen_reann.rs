@@ -5,12 +5,13 @@ use ratatui::layout::Rect;
 use ratatui::prelude::{Line, Stylize, Text, Widget};
 use ratatui::symbols::border;
 use ratatui::widgets::{Block, Paragraph};
-use crate::app::KeyEventHandler;
+use crate::app::{KeyEventHandler, Renderable};
 use crate::dto::Torrent;
 use crate::mapper::Mapper;
 use crate::service::Service;
+use crate::ui::view::view_key_bindings::{KeyBindingView, KeyBindingItemView};
 
-#[derive(Default, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct ReannScreen {
     service: Service,
     mapper: Mapper,
@@ -18,8 +19,15 @@ pub struct ReannScreen {
 }
 
 impl ReannScreen {
-    pub fn render(&mut self, frame: &mut Frame, index: usize) {
-        self.selected_row_index = index;
+
+    pub fn new(service: Service, mapper: Mapper) -> Self {
+        Self { service, mapper, selected_row_index: 0 }
+    }
+}
+
+impl Renderable for ReannScreen {
+    fn render(&mut self, frame: &mut Frame, args: Vec<usize>) {
+        self.selected_row_index = args[0];
         frame.render_widget(*self, frame.area());
     }
 }
@@ -29,17 +37,15 @@ impl Widget for ReannScreen {
     where
         Self: Sized
     {
-        let torrents: Vec<Torrent> = self.mapper.map_to_response(self.service.torrent_list()).arguments.torrents;
+        let torrents: Vec<Torrent> = self.mapper.json_to_response(self.service.torrent_list()).arguments.torrents;
         let info = torrents.get(self.selected_row_index).unwrap();
-
+        
         let title = Line::from(" Reannounce torrent ".bold());
-        let title_bottom = Line::from(vec![
-            " Reannounce ".into(),
-            "[Enter]".gray().bold(),
-            " | ".gray(),
-            "Cancel ".into(),
-            "[Esc] ".gray().bold()
-        ]);
+        let mut key_bindings = KeyBindingView::default();
+        key_bindings
+            .add(KeyBindingView::action("Reannounce"))
+            .add(KeyBindingView::cancel())
+            .add(KeyBindingView::quit());
         let body = Text::from(vec![
             Line::from(vec!["".into()]),
             Line::from(vec![info.name.clone().into()]),
@@ -47,7 +53,7 @@ impl Widget for ReannScreen {
         ]);
         let block = Block::bordered()
             .title(title.centered())
-            .title_bottom(title_bottom.centered())
+            .title_bottom(key_bindings.items_as_line().centered())
             .border_set(border::THICK);
         Paragraph::new(body)
             .centered()
@@ -62,7 +68,7 @@ impl KeyEventHandler for ReannScreen {
             match key_event.code {
                 // submit and leave
                 KeyCode::Enter => {
-                    let torrents: Vec<Torrent> = self.mapper.map_to_response(self.service.torrent_list()).arguments.torrents;
+                    let torrents: Vec<Torrent> = self.mapper.json_to_response(self.service.torrent_list()).arguments.torrents;
                     self.service.torrent_reannounce(torrents[self.selected_row_index].id.to_string());
                     false
                 },

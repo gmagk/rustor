@@ -10,7 +10,11 @@ mod util;
 use crate::app::App;
 use std::io;
 use std::process::Command;
+use std::sync::{Arc, Mutex};
 
 fn main() -> io::Result<()> {
-    App::new().run()
+    let terminal = ratatui::init();
+    let result = App::new(Arc::new(Mutex::new(terminal))).run();
+    ratatui::restore();
+    result
 }
