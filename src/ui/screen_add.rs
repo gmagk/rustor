@@ -9,16 +9,18 @@ use ratatui::widgets::{Block, Paragraph};
 use ratatui::Frame;
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
+use crate::config::{Config, ConfigKeyBinding};
 
 #[derive(Clone)]
 pub struct AddScreen {
+    config: Config,
     input: Input,
     service: Service
 }
 
 impl AddScreen {
-    pub fn new(service: Service) -> Self {
-        Self { input: Input::new(String::default()), service }
+    pub fn new(config: Config, service: Service) -> Self {
+        Self { config, input: Input::new(String::default()), service }
     }
 }
 
@@ -26,11 +28,13 @@ impl Renderable for AddScreen {
     fn render(&mut self, frame: &mut Frame, args: Vec<usize>) {
         // frame
         let title = Line::from(" Add torrent ".bold());
-        let mut key_bindings = KeyBindingView::default();
+        let mut key_bindings = KeyBindingView::new(
+            self.config.clone()
+        );
         key_bindings
+            .init(vec![ConfigKeyBinding::KbHome, ConfigKeyBinding::KbHelp, ConfigKeyBinding::KbQuit])
             .add(KeyBindingView::action("Add"))
-            .add(KeyBindingView::cancel())
-            .add(KeyBindingView::quit());
+            .add(KeyBindingView::cancel());
         let main_block = Block::bordered()
             .title(title.centered())
             .title_bottom(key_bindings.items_as_line().centered())

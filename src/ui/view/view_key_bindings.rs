@@ -1,16 +1,36 @@
-use std::collections::HashMap;
+use crate::config::{Config, ConfigKeyBinding};
+use clap::Parser;
 use crossterm::event::KeyCode::Null;
 use crossterm::event::{KeyCode, KeyModifiers};
-use clap::Parser;
-use ratatui::style::{Style, Stylize};
+use ratatui::style::Stylize;
 use ratatui::text::{Line, Span};
 
-#[derive(Default)]
 pub struct KeyBindingView {
+    config: Config,
     items: Vec<KeyBindingItemView>
 }
 
 impl KeyBindingView {
+
+    pub fn new(config: Config) -> Self {
+        Self { config, items: vec![] }
+    }
+
+    pub fn init(&mut self, initial_items: Vec<ConfigKeyBinding>) -> &mut Self {
+        initial_items.iter().for_each(|item| {
+            if ConfigKeyBinding::KbHome.eq(item) {
+                let item = self.home();
+                self.add(item);
+            } else if ConfigKeyBinding::KbHelp.eq(item) {
+                let item = self.help();
+                self.add(item);
+            } else if ConfigKeyBinding::KbQuit.eq(item) {
+                let item = self.quit();
+                self.add(item);
+            }
+        });
+        self
+    }
 
     pub fn add(&mut self, item: KeyBindingItemView) -> &mut Self {
         self.items.push(item);
@@ -33,12 +53,16 @@ impl KeyBindingView {
         KeyBindingItemView::new_key_code("Cancel", KeyCode::Esc)
     }
 
-    pub fn quit() -> KeyBindingItemView {
-        KeyBindingItemView::new_ctrl_and_char("Quit", 'q')
+    pub fn quit(&mut self) -> KeyBindingItemView {
+        KeyBindingItemView::new_ctrl_and_char("Quit", self.config.kb_quit())
     }
 
-    pub fn home() -> KeyBindingItemView {
-        KeyBindingItemView::new_key_code("Home", KeyCode::Backspace)
+    pub fn home(&mut self) -> KeyBindingItemView {
+        KeyBindingItemView::new_ctrl_and_char("Home", self.config.kb_home())
+    }
+
+    pub fn help(&mut self) -> KeyBindingItemView {
+        KeyBindingItemView::new_ctrl_and_char("Help", self.config.kb_help())
     }
 
     pub fn action(act: &str) -> KeyBindingItemView {

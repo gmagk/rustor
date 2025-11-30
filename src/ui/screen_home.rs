@@ -11,6 +11,7 @@ use std::time::{Duration, UNIX_EPOCH};
 use ratatui::symbols::border;
 use ratatui::text::{Line, StyledGrapheme};
 use crate::app::{KeyEventHandler, Renderable, Screen};
+use crate::config::{Config, ConfigKeyBinding};
 use crate::mapper::Mapper;
 use crate::service::Service;
 use crate::ui::view::view_key_bindings::{KeyBindingView, KeyBindingItemView};
@@ -24,6 +25,7 @@ struct State {
 
 #[derive(Clone)]
 pub struct HomeScreen {
+    config: Config,
     table_state: TableState,
     state: State,
     service: Service,
@@ -31,8 +33,9 @@ pub struct HomeScreen {
 }
 
 impl HomeScreen {
-    pub fn new(service: Service, mapper: Mapper) -> Self {
-        Self { table_state: TableState::default().with_selected(0), state: State::default(), service, mapper }
+    
+    pub fn new(config: Config, service: Service, mapper: Mapper) -> Self {
+        Self { config, table_state: TableState::default().with_selected(0), state: State::default(), service, mapper }
     }
 
     pub fn next_row(&mut self) {
@@ -147,13 +150,13 @@ impl Renderable for HomeScreen {
         self.state.torrent_ids.extend(torrents.iter().map(|t| t.id));
 
         let title = Line::from(" All torrents ".bold());
-        let mut key_bindings = KeyBindingView::default();
+        let mut key_bindings = KeyBindingView::new(self.config.clone());
         key_bindings
+            .init(vec![ConfigKeyBinding::KbHelp, ConfigKeyBinding::KbQuit])
             .add(KeyBindingItemView::new_ctrl_and_char("Add", 'a'))
             .add(KeyBindingItemView::new_ctrl_and_char("Remove", 'd'))
             .add(KeyBindingItemView::new_ctrl_and_char("Torrent", 't'))
-            .add(KeyBindingItemView::new_ctrl_and_char("Reannounce", 'r'))
-            .add(KeyBindingView::quit());
+            .add(KeyBindingItemView::new_ctrl_and_char("Reannounce", 'r'));
         let block = Block::bordered()
             .title(title.centered())
             .title_bottom(key_bindings.items_as_line().centered())

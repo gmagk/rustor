@@ -17,6 +17,9 @@ use std::sync::mpsc::{channel, TryRecvError};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::{io, thread};
+use std::ascii::AsciiExt;
+use ratatui::text::ToText;
+use crate::config::Config;
 
 pub trait KeyEventHandler {
 
@@ -54,15 +57,15 @@ impl AppState {
 }
 
 pub struct App {
+    config: Config,
     terminal: Arc<Mutex<DefaultTerminal>>,
-    exit: bool,
     state: AppState
 }
 
 impl App {
 
-    pub fn new(terminal: Arc<Mutex<DefaultTerminal>>) -> Self {
-        Self { terminal, exit: false, state: AppState::new(Screen::Home) }
+    pub fn new(config: Config, terminal: Arc<Mutex<DefaultTerminal>>) -> Self {
+        Self { config, terminal, state: AppState::new(Screen::Home) }
     }
 
     pub fn run(&mut self) -> io::Result<()> {
@@ -73,14 +76,14 @@ impl App {
         }
 
         let mapper = Mapper::default();
-        let home_screen_arc = Arc::new(Mutex::new(HomeScreen::new(service, mapper)));
-        let info_screen_arc = Arc::new(Mutex::new(InfoScreen::new(service, mapper)));
-        let mut help_screen = HelpScreen::default();
-        let mut add_screen = AddScreen::new(service);
-        let mut reann_screen = ReannScreen::new(service, mapper);
-        let mut del_screen = RmScreen::new(service, mapper);
+        let home_screen_arc = Arc::new(Mutex::new(HomeScreen::new(self.config, service, mapper)));
+        let info_screen_arc = Arc::new(Mutex::new(InfoScreen::new(self.config, service, mapper)));
+        let mut help_screen = HelpScreen::new(self.config);
+        let mut add_screen = AddScreen::new(self.config, service);
+        let mut reann_screen = ReannScreen::new(self.config, service, mapper);
+        let mut del_screen = RmScreen::new(self.config, service, mapper);
 
-        while !self.exit {
+        loop {
             let (tx, rx) = channel();
             let home_screen_arc_clone = home_screen_arc.clone();
             let info_screen_arc_clone = info_screen_arc.clone();
@@ -121,14 +124,14 @@ impl App {
                     }
                 });
             } else if self.state.screen == Screen::Del || self.state.screen == Screen::ReAnn {
-                        let selected_index = home_screen_arc_clone.lock().unwrap().active_row();
-                        let _ = terminal_clone.lock().unwrap().draw(|frame| {
-                            match self.state.screen {
-                                Screen::Del => del_screen.render(frame, vec![selected_index]),
-                                Screen::ReAnn => reann_screen.render(frame, vec![selected_index]),
-                                _ => {}
-                            }
-                        });
+                let selected_index = home_screen_arc_clone.lock().unwrap().active_row();
+                let _ = terminal_clone.lock().unwrap().draw(|frame| {
+                    match self.state.screen {
+                        Screen::Del => del_screen.render(frame, vec![selected_index]),
+                        Screen::ReAnn => reann_screen.render(frame, vec![selected_index]),
+                        _ => {}
+                    }
+                });
             } else {
                 let _ = terminal_clone.lock().unwrap().draw(|frame| {
                     match self.state.screen {
@@ -142,7 +145,6 @@ impl App {
             let event = event::read()?;
             if let Event::Key(key_event) = event {
                 let ctrl = key_event.modifiers.contains(KeyModifiers::CONTROL);
-                let shft = key_event.modifiers.contains(KeyModifiers::SHIFT);
 
                 // terminate spawned thread (in case of home page)
                 if self.state.screen != Screen::Home {
@@ -152,12 +154,18 @@ impl App {
                 let home_screen_arc_clone_2 = home_screen_arc.clone();
                 let info_screen_arc_clone_2 = info_screen_arc.clone();
 
-                // switch screens or exit
+                // switch main screens or exit
                 if key_event.kind == KeyEventKind::Press {
                     match key_event.code {
-                        KeyCode::Backspace => self.state.screen = Screen::Home,
-                        KeyCode::Char('h') if ctrl => self.state.screen = Screen::Help,
-                        KeyCode::Char('q') if ctrl => self.exit = true,
+                        KeyCode::Char(c) if ctrl => {
+                            if c == self.config.kb_home() {
+                                self.state.screen = Screen::Home
+                            } else if c == self.config.kb_help() {
+                                self.state.screen = Screen::Help
+                            } else if c == self.config.kb_quit() {
+                                break
+                            }
+                        },
                         _ => {}
                     }
                 }

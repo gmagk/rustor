@@ -16,8 +16,10 @@ use ratatui::layout::Constraint::{Fill, Length, Min, Percentage};
 use ratatui::style::{Color, Style};
 use ratatui::text::{Span, Text};
 use tui_scrollview::{ScrollView, ScrollViewState};
+use crate::config::{Config, ConfigKeyBinding};
 
 pub struct InfoScreen {
+    config: Config,
     service: Service,
     mapper: Mapper,
     selected_row_index: usize,
@@ -29,8 +31,9 @@ pub struct InfoScreen {
 
 impl InfoScreen {
 
-    pub fn new(service: Service, mapper: Mapper) -> Self {
+    pub fn new(config: Config, service: Service, mapper: Mapper) -> Self {
         Self {
+            config,
             service,
             mapper,
             selected_row_index: 0,
@@ -120,10 +123,12 @@ impl Renderable for InfoScreen {
             .render(gauge_area, scroll_view_buf);
 
         // info
-        let mut key_bindings = KeyBindingView::default();
-        key_bindings
-            .add(KeyBindingView::home())
-            .add(KeyBindingView::quit());
+        let mut key_bindings = KeyBindingView::new(self.config.clone());
+        key_bindings.init(vec![
+            ConfigKeyBinding::KbHome,
+            ConfigKeyBinding::KbHelp,
+            ConfigKeyBinding::KbQuit,
+        ]);
         block = Block::bordered()
             .title(" Info ")
             .padding(Padding::uniform(1));

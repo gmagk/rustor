@@ -9,10 +9,12 @@ use ratatui::prelude::{Line, Stylize, Text, Widget};
 use ratatui::symbols::border;
 use ratatui::widgets::{Block, Paragraph};
 use ratatui::Frame;
+use crate::config::{Config, ConfigKeyBinding};
 use crate::ui::view::view_key_bindings::KeyBindingView;
 
 #[derive(Clone, Copy)]
 pub struct RmScreen {
+    config: Config,
     service: Service,
     mapper: Mapper,
     selected_row_index: usize
@@ -20,8 +22,8 @@ pub struct RmScreen {
 
 impl RmScreen {
 
-    pub fn new(service: Service, mapper: Mapper) -> Self {
-        Self { service, mapper, selected_row_index: 0 }
+    pub fn new(config: Config, service: Service, mapper: Mapper) -> Self {
+        Self { config, service, mapper, selected_row_index: 0 }
     }
 }
 
@@ -41,11 +43,11 @@ impl Widget for RmScreen {
         let info = torrents.get(self.selected_row_index).unwrap();
 
         let title = Line::from(" Remove torrent ".bold());
-        let mut key_bindings = KeyBindingView::default();
+        let mut key_bindings = KeyBindingView::new(self.config.clone());
         key_bindings
+            .init(vec![ConfigKeyBinding::KbHome, ConfigKeyBinding::KbHelp, ConfigKeyBinding::KbQuit])
             .add(KeyBindingView::action("Remove"))
-            .add(KeyBindingView::cancel())
-            .add(KeyBindingView::quit());
+            .add(KeyBindingView::cancel());
         let body = Text::from(vec![
             Line::from(vec!["".into()]),
             Line::from(vec![info.name.clone().into()]),

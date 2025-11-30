@@ -6,10 +6,19 @@ use ratatui::symbols::border;
 use ratatui::widgets::{Block, Paragraph};
 use ratatui::Frame;
 use crate::app::{KeyEventHandler, Renderable};
-use crate::ui::view::view_key_bindings::KeyBindingView;
+use crate::config::{Config, ConfigKeyBinding};
+use crate::ui::view::view_key_bindings::{KeyBindingItemView, KeyBindingView};
 
-#[derive(Default, Clone, Copy)]
-pub struct HelpScreen {}
+#[derive(Clone, Copy)]
+pub struct HelpScreen {
+    config: Config
+}
+
+impl HelpScreen {
+    pub fn new(config: Config) -> Self {
+        Self { config }
+    }
+}
 
 impl Renderable for HelpScreen {
     fn render(&mut self, frame: &mut Frame, args: Vec<usize>) {
@@ -20,10 +29,8 @@ impl Renderable for HelpScreen {
 impl Widget for HelpScreen {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let title = Line::from(" Help ".bold());
-        let mut key_bindings = KeyBindingView::default();
-        key_bindings
-            .add(KeyBindingView::home())
-            .add(KeyBindingView::quit());
+        let mut key_bindings = KeyBindingView::new(self.config.clone());
+        key_bindings.init(vec![ConfigKeyBinding::KbHome, ConfigKeyBinding::KbQuit]);
         let body = Text::from(vec![
             Line::from(vec![
                 "All available keybindings are shown on the bottom of each screen.".into()
