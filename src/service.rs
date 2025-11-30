@@ -1,9 +1,8 @@
-use std::process::Command;
 use crate::dto::Torrent;
+use std::process::Command;
 
 #[derive(Default, Clone, Copy)]
 pub struct Service {}
-
 
 impl Service {
     pub fn transmission_daemon_is_active(&self) -> bool {
@@ -17,7 +16,9 @@ impl Service {
         let value = String::from_utf8(status_command).unwrap_or_default();
 
         if value.is_empty() {
-            println!("Could not retrieve the transmission-daemon's status, maybe is not running or is not even installed");
+            println!(
+                "Could not retrieve the transmission-daemon's status, maybe is not running or is not even installed"
+            );
             false
         } else {
             !value.contains("inactive") && value.contains("active")
@@ -25,8 +26,8 @@ impl Service {
     }
 
     /*
-        @tor: Torrent local filename or magnet-link
-     */
+       @tor: Torrent local filename or magnet-link
+    */
     pub fn torrent_add(&self, tor: String) -> Vec<String> {
         Self::run_command(format!("transmission-remote -j -a {tor}"))
     }

@@ -1,12 +1,11 @@
-use std::time::{Duration, UNIX_EPOCH};
-use chrono::{DateTime, Local, Utc};
 use crate::dto::Torrent;
 use crate::util::Util;
+use chrono::{DateTime, Local, Utc};
+use std::time::{Duration, UNIX_EPOCH};
 
 pub struct TorrentView {}
 
 impl TorrentView {
-
     pub fn eta(torrent: &Torrent) -> String {
         if torrent.left_until_done == 0 {
             return "Done".to_string();
@@ -17,7 +16,7 @@ impl TorrentView {
         }
 
         let seconds = torrent.eta % 60;
-        let minutes = (torrent.eta /60) % 60;
+        let minutes = (torrent.eta / 60) % 60;
         let hours = (torrent.eta / 60 / 60) % 60;
         let days = (torrent.eta / 60 / 60 / 24) % 24;
 
@@ -64,7 +63,8 @@ impl TorrentView {
             return String::default();
         }
 
-        let mut res = torrent.peers
+        let mut res = torrent
+            .peers
             .iter()
             .map(|peer| peer.client_name.clone())
             .reduce(|mut accumulator, s| {
@@ -72,7 +72,8 @@ impl TorrentView {
                 accumulator.push(',');
                 accumulator.push(' ');
                 accumulator
-            }).unwrap();
+            })
+            .unwrap();
         res.pop();
         res.pop();
         res

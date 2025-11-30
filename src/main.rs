@@ -1,12 +1,12 @@
 #![allow(unused_imports)]
 
 mod app;
+mod config;
 mod dto;
-mod service;
 mod mapper;
+mod service;
 mod ui;
 mod util;
-mod config;
 
 use crate::app::App;
 use crate::config::Config;

@@ -3,7 +3,6 @@ use crossterm::event::{KeyEvent, KeyModifiers};
 pub struct Util {}
 
 impl Util {
-
     pub fn print_bytes(bytes: f64) -> String {
         let mut res = 0f64;
         let mut postfix = "bytes";

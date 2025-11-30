@@ -1,26 +1,30 @@
 use crate::app::{KeyEventHandler, Renderable};
+use crate::config::{Config, ConfigKeyBinding};
 use crate::service::Service;
-use crate::ui::view::view_key_bindings::{KeyBindingView, KeyBindingItemView};
+use crate::ui::view::view_key_bindings::{KeyBindingItemView, KeyBindingView};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
+use ratatui::Frame;
 use ratatui::layout::{Constraint, Flex, Layout};
 use ratatui::prelude::{Line, Stylize};
 use ratatui::symbols::border;
 use ratatui::widgets::{Block, Paragraph};
-use ratatui::Frame;
-use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
-use crate::config::{Config, ConfigKeyBinding};
+use tui_input::backend::crossterm::EventHandler;
 
 #[derive(Clone)]
 pub struct AddScreen {
     config: Config,
     input: Input,
-    service: Service
+    service: Service,
 }
 
 impl AddScreen {
     pub fn new(config: Config, service: Service) -> Self {
-        Self { config, input: Input::new(String::default()), service }
+        Self {
+            config,
+            input: Input::new(String::default()),
+            service,
+        }
     }
 }
 
@@ -28,20 +32,20 @@ impl Renderable for AddScreen {
     fn render(&mut self, frame: &mut Frame, args: Vec<usize>) {
         // frame
         let title = Line::from(" Add torrent ".bold());
-        let mut key_bindings = KeyBindingView::new(
-            self.config.clone()
-        );
+        let mut key_bindings = KeyBindingView::new(self.config.clone());
         key_bindings
-            .init(vec![ConfigKeyBinding::KbHome, ConfigKeyBinding::KbHelp, ConfigKeyBinding::KbQuit])
+            .init(vec![
+                ConfigKeyBinding::KbHome,
+                ConfigKeyBinding::KbHelp,
+                ConfigKeyBinding::KbQuit,
+            ])
             .add(KeyBindingView::action("Add"))
             .add(KeyBindingView::cancel());
         let main_block = Block::bordered()
             .title(title.centered())
             .title_bottom(key_bindings.items_as_line().centered())
             .border_set(border::THICK);
-        let main_frame = Paragraph::new("")
-            .centered()
-            .block(main_block);
+        let main_frame = Paragraph::new("").centered().block(main_block);
         frame.render_widget(main_frame, frame.area());
 
         // input
@@ -56,7 +60,7 @@ impl Renderable for AddScreen {
         let title = Line::from(vec![
             " Local filepath".bold(),
             " or ".gray(),
-            "magnet link ".bold()
+            "magnet link ".bold(),
         ]);
         let block = Block::bordered()
             .title(title.centered())
@@ -73,10 +77,9 @@ impl Renderable for AddScreen {
 }
 
 impl KeyEventHandler for AddScreen {
-
     /*
-        Returns false if we are done from this screen
-     */
+       Returns false if we are done from this screen
+    */
     fn handle_key_event(&mut self, key_event: KeyEvent, event: Event) -> bool {
         if key_event.kind == KeyEventKind::Press {
             match key_event.code {
@@ -85,12 +88,12 @@ impl KeyEventHandler for AddScreen {
                     self.service.torrent_add(self.input.value().to_string());
                     self.input.reset();
                     false
-                },
+                }
                 // leave
                 KeyCode::Esc => {
                     self.input.reset();
                     false
-                },
+                }
                 // let input handle it
                 _ => {
                     self.input.handle_event(&event);

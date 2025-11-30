@@ -1,29 +1,33 @@
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
-use ratatui::buffer::Buffer;
-use ratatui::Frame;
-use ratatui::layout::Rect;
-use ratatui::prelude::{Line, Stylize, Text, Widget};
-use ratatui::symbols::border;
-use ratatui::widgets::{Block, Paragraph};
 use crate::app::{KeyEventHandler, Renderable};
 use crate::config::{Config, ConfigKeyBinding};
 use crate::dto::Torrent;
 use crate::mapper::Mapper;
 use crate::service::Service;
-use crate::ui::view::view_key_bindings::{KeyBindingView, KeyBindingItemView};
+use crate::ui::view::view_key_bindings::{KeyBindingItemView, KeyBindingView};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
+use ratatui::Frame;
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
+use ratatui::prelude::{Line, Stylize, Text, Widget};
+use ratatui::symbols::border;
+use ratatui::widgets::{Block, Paragraph};
 
 #[derive(Clone, Copy)]
 pub struct ReannScreen {
     config: Config,
     service: Service,
     mapper: Mapper,
-    selected_row_index: usize
+    selected_row_index: usize,
 }
 
 impl ReannScreen {
-
     pub fn new(config: Config, service: Service, mapper: Mapper) -> Self {
-        Self { config, service, mapper, selected_row_index: 0 }
+        Self {
+            config,
+            service,
+            mapper,
+            selected_row_index: 0,
+        }
     }
 }
 
@@ -37,21 +41,29 @@ impl Renderable for ReannScreen {
 impl Widget for ReannScreen {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
-        Self: Sized
+        Self: Sized,
     {
-        let torrents: Vec<Torrent> = self.mapper.json_to_response(self.service.torrent_list()).arguments.torrents;
+        let torrents: Vec<Torrent> = self
+            .mapper
+            .json_to_response(self.service.torrent_list())
+            .arguments
+            .torrents;
         let info = torrents.get(self.selected_row_index).unwrap();
-        
+
         let title = Line::from(" Reannounce torrent ".bold());
         let mut key_bindings = KeyBindingView::new(self.config.clone());
         key_bindings
-            .init(vec![ConfigKeyBinding::KbHome, ConfigKeyBinding::KbHelp, ConfigKeyBinding::KbQuit])
+            .init(vec![
+                ConfigKeyBinding::KbHome,
+                ConfigKeyBinding::KbHelp,
+                ConfigKeyBinding::KbQuit,
+            ])
             .add(KeyBindingView::action("Reannounce"))
             .add(KeyBindingView::cancel());
         let body = Text::from(vec![
             Line::from(vec!["".into()]),
             Line::from(vec![info.name.clone().into()]),
-            Line::from(vec!["".into()])
+            Line::from(vec!["".into()]),
         ]);
         let block = Block::bordered()
             .title(title.centered())
@@ -70,16 +82,19 @@ impl KeyEventHandler for ReannScreen {
             match key_event.code {
                 // submit and leave
                 KeyCode::Enter => {
-                    let torrents: Vec<Torrent> = self.mapper.json_to_response(self.service.torrent_list()).arguments.torrents;
-                    self.service.torrent_reannounce(torrents[self.selected_row_index].id.to_string());
+                    let torrents: Vec<Torrent> = self
+                        .mapper
+                        .json_to_response(self.service.torrent_list())
+                        .arguments
+                        .torrents;
+                    self.service
+                        .torrent_reannounce(torrents[self.selected_row_index].id.to_string());
                     false
-                },
+                }
                 // leave
-                KeyCode::Esc => {
-                    false
-                },
+                KeyCode::Esc => false,
                 // do not leave (maybe it will change in the future)
-                _ => { true }
+                _ => true,
             }
         } else {
             false

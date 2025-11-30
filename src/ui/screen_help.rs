@@ -1,17 +1,17 @@
+use crate::app::{KeyEventHandler, Renderable};
+use crate::config::{Config, ConfigKeyBinding};
+use crate::ui::view::view_key_bindings::{KeyBindingItemView, KeyBindingView};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
+use ratatui::Frame;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::{Line, Stylize, Text, Widget};
 use ratatui::symbols::border;
 use ratatui::widgets::{Block, Paragraph};
-use ratatui::Frame;
-use crate::app::{KeyEventHandler, Renderable};
-use crate::config::{Config, ConfigKeyBinding};
-use crate::ui::view::view_key_bindings::{KeyBindingItemView, KeyBindingView};
 
 #[derive(Clone, Copy)]
 pub struct HelpScreen {
-    config: Config
+    config: Config,
 }
 
 impl HelpScreen {
@@ -31,11 +31,9 @@ impl Widget for HelpScreen {
         let title = Line::from(" Help ".bold());
         let mut key_bindings = KeyBindingView::new(self.config.clone());
         key_bindings.init(vec![ConfigKeyBinding::KbHome, ConfigKeyBinding::KbQuit]);
-        let body = Text::from(vec![
-            Line::from(vec![
-                "All available keybindings are shown on the bottom of each screen.".into()
-            ])
-        ]);
+        let body = Text::from(vec![Line::from(vec![
+            "All available keybindings are shown on the bottom of each screen.".into(),
+        ])]);
         let block = Block::bordered()
             .title(title.centered())
             .title_bottom(key_bindings.items_as_line().centered())
@@ -48,12 +46,12 @@ impl Widget for HelpScreen {
 }
 
 impl KeyEventHandler for HelpScreen {
-    fn handle_key_event(&mut self, key_event: KeyEvent, event:Event) -> bool {
+    fn handle_key_event(&mut self, key_event: KeyEvent, event: Event) -> bool {
         if key_event.kind == KeyEventKind::Press {
             match key_event.code {
                 // KeyCode::Char('e') if key_event.modifiers.contains(KeyModifiers::CONTROL) => self.input.active = !self.input.active,
                 // do not leave (maybe it will change in the future)
-                _ => { false }
+                _ => false,
             }
         } else if key_event.kind == KeyEventKind::Repeat {
             // TODO handle for command input

@@ -1,22 +1,25 @@
 use crate::app::{KeyEventHandler, Renderable};
+use crate::config::{Config, ConfigKeyBinding};
 use crate::dto::Torrent;
 use crate::mapper::Mapper;
 use crate::service::Service;
 use crate::ui::view::view_key_bindings::KeyBindingView;
 use crate::ui::view::view_torrent::TorrentView;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
-use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect, Size};
-use ratatui::prelude::{Line, Stylize};
-use ratatui::symbols::border;
-use ratatui::widgets::{Bar, BarChart, BarGroup, Block, HighlightSpacing, LineGauge, List, ListItem, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Widget, Wrap};
-use ratatui::{symbols, Frame};
-use std::ops::Add;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Constraint::{Fill, Length, Min, Percentage};
+use ratatui::layout::{Constraint, Direction, Layout, Margin, Rect, Size};
+use ratatui::prelude::{Line, Stylize};
 use ratatui::style::{Color, Style};
+use ratatui::symbols::border;
 use ratatui::text::{Span, Text};
+use ratatui::widgets::{
+    Bar, BarChart, BarGroup, Block, HighlightSpacing, LineGauge, List, ListItem, Padding,
+    Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Widget, Wrap,
+};
+use ratatui::{Frame, symbols};
+use std::ops::Add;
 use tui_scrollview::{ScrollView, ScrollViewState};
-use crate::config::{Config, ConfigKeyBinding};
 
 pub struct InfoScreen {
     config: Config,
@@ -26,11 +29,10 @@ pub struct InfoScreen {
     vertical_scroll_state: ScrollbarState,
     scroll_view_state: ScrollViewState,
     vertical_scroll: usize,
-    text: [String; 3]
+    text: [String; 3],
 }
 
 impl InfoScreen {
-
     pub fn new(config: Config, service: Service, mapper: Mapper) -> Self {
         Self {
             config,
@@ -40,7 +42,7 @@ impl InfoScreen {
             vertical_scroll_state: ScrollbarState::default(),
             scroll_view_state: ScrollViewState::default(),
             vertical_scroll: 0,
-            text: [String::new(), String::new(), String::new()]
+            text: [String::new(), String::new(), String::new()],
         }
     }
 
@@ -59,8 +61,9 @@ impl InfoScreen {
             ("Green", 7, Color::Green),
             ("Blue", 11, Color::Blue),
         ];
-        let data = CHART_DATA
-            .map(|(label, value, color)| Bar::default().label(label.into()).value(value).style(color));
+        let data = CHART_DATA.map(|(label, value, color)| {
+            Bar::default().label(label.into()).value(value).style(color)
+        });
         BarGroup::default().bars(&data)
     }
 
@@ -86,7 +89,11 @@ impl Renderable for InfoScreen {
     fn render(&mut self, frame: &mut Frame, args: Vec<usize>) {
         self.selected_row_index = args[0];
 
-        let torrents: Vec<Torrent> = self.mapper.json_to_response(self.service.torrent_list()).arguments.torrents;
+        let torrents: Vec<Torrent> = self
+            .mapper
+            .json_to_response(self.service.torrent_list())
+            .arguments
+            .torrents;
         let torrent = torrents.get(self.selected_row_index).unwrap();
 
         let scroll_view_height = 30;
@@ -100,26 +107,27 @@ impl Renderable for InfoScreen {
         let mut scroll_view = ScrollView::new(Size::new(width, scroll_view_height));
         let scroll_view_buf = scroll_view.buf_mut();
 
-        let [gauge_area, info_area, peers_area, bottom_area] = Layout::vertical([
-            Length(5),
-            Min(1),
-            Min(1),
-            Length(1)
-        ]).spacing(1)
-        .vertical_margin(1)
-        .horizontal_margin(1)
-        .areas(scroll_view_buf.area);
+        let [gauge_area, info_area, peers_area, bottom_area] =
+            Layout::vertical([Length(5), Min(1), Min(1), Length(1)])
+                .spacing(1)
+                .vertical_margin(1)
+                .horizontal_margin(1)
+                .areas(scroll_view_buf.area);
 
         // gauge
         let mut block = Block::bordered()
-            .title(Line::from(Span::from(" ").add(Span::from(torrent.name.clone()).bold().underlined()).add(Span::from(" "))))
+            .title(Line::from(
+                Span::from(" ")
+                    .add(Span::from(torrent.name.clone()).bold().underlined())
+                    .add(Span::from(" ")),
+            ))
             .padding(Padding::uniform(1));
         let gauge_style = Style::new().bg(Color::DarkGray).fg(Color::Gray).bold();
         LineGauge::default()
             .block(block)
             .filled_style(gauge_style)
             .line_set(symbols::line::NORMAL)
-            .ratio(torrent.percentage_done()/100f64)
+            .ratio(torrent.percentage_done() / 100f64)
             .render(gauge_area, scroll_view_buf);
 
         // info
@@ -134,10 +142,26 @@ impl Renderable for InfoScreen {
             .padding(Padding::uniform(1));
         let info = vec![
             Line::from("ETA: ".to_string().add(TorrentView::eta(torrent).as_str())),
-            Line::from("Size: ".to_string().add(TorrentView::total_size(torrent).as_str())),
-            Line::from("Added on: ".to_string().add(TorrentView::added_on(torrent).as_str())),
-            Line::from("Download: ".to_string().add(TorrentView::download_rate(torrent).as_str())),
-            Line::from("Upload: ".to_string().add(TorrentView::upload_rate(torrent).as_str())),
+            Line::from(
+                "Size: "
+                    .to_string()
+                    .add(TorrentView::total_size(torrent).as_str()),
+            ),
+            Line::from(
+                "Added on: "
+                    .to_string()
+                    .add(TorrentView::added_on(torrent).as_str()),
+            ),
+            Line::from(
+                "Download: "
+                    .to_string()
+                    .add(TorrentView::download_rate(torrent).as_str()),
+            ),
+            Line::from(
+                "Upload: "
+                    .to_string()
+                    .add(TorrentView::upload_rate(torrent).as_str()),
+            ),
         ];
         Paragraph::new(info)
             .block(block)
@@ -148,16 +172,25 @@ impl Renderable for InfoScreen {
             .title(" Peers ")
             .padding(Padding::uniform(1));
         List::new(vec![
-                ListItem::from(format!("Connected to {} peers", torrent.peers_connected)),
-                ListItem::from(format!("Getting from {} peers", torrent.peers_sending_to_us)),
-                ListItem::from(format!("Sending to {} peers", torrent.peers_getting_from_us)),
-            ]).block(block)
-            .highlight_symbol(">")
-            .highlight_spacing(HighlightSpacing::Always)
-            .render(peers_area, scroll_view_buf);
+            ListItem::from(format!("Connected to {} peers", torrent.peers_connected)),
+            ListItem::from(format!(
+                "Getting from {} peers",
+                torrent.peers_sending_to_us
+            )),
+            ListItem::from(format!(
+                "Sending to {} peers",
+                torrent.peers_getting_from_us
+            )),
+        ])
+        .block(block)
+        .highlight_symbol(">")
+        .highlight_spacing(HighlightSpacing::Always)
+        .render(peers_area, scroll_view_buf);
 
         // bottom
-        Line::from(key_bindings.items_as_line()).centered().render(bottom_area, scroll_view_buf);
+        Line::from(key_bindings.items_as_line())
+            .centered()
+            .render(bottom_area, scroll_view_buf);
 
         frame.render_stateful_widget(scroll_view, frame.area(), &mut self.scroll_view_state);
     }
@@ -176,11 +209,9 @@ impl KeyEventHandler for InfoScreen {
                     true
                 }
                 // leave
-                KeyCode::Esc => {
-                    false
-                },
+                KeyCode::Esc => false,
                 // do not leave (maybe it will change in the future)
-                _ => { true }
+                _ => true,
             }
         } else {
             false

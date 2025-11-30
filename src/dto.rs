@@ -109,15 +109,14 @@ pub struct Torrent {
 }
 
 impl Torrent {
-
     pub fn percentage_done(&self) -> f64 {
         if self.left_until_done == 0 {
-            return 100f64
+            return 100f64;
         }
 
         let left_undone: f64 = self.left_until_done as f64;
         let total_size: f64 = self.size_when_done as f64;
-        (100f64 - 100f64*left_undone/total_size) % 100f64
+        (100f64 - 100f64 * left_undone / total_size) % 100f64
     }
 }
 
@@ -152,7 +151,7 @@ pub struct Peer {
     #[serde(rename = "rateToClient")]
     pub rate_to_client: i64,
     #[serde(rename = "rateToPeer")]
-    pub rate_to_peer: i64
+    pub rate_to_peer: i64,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -216,7 +215,7 @@ pub struct File {
     pub bytes_completed: i64,
     pub end_piece: i64,
     pub length: i64,
-    pub name: String
+    pub name: String,
 }
 
 #[derive(Default, Serialize, Deserialize)]

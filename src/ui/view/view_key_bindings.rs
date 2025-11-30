@@ -7,13 +7,15 @@ use ratatui::text::{Line, Span};
 
 pub struct KeyBindingView {
     config: Config,
-    items: Vec<KeyBindingItemView>
+    items: Vec<KeyBindingItemView>,
 }
 
 impl KeyBindingView {
-
     pub fn new(config: Config) -> Self {
-        Self { config, items: vec![] }
+        Self {
+            config,
+            items: vec![],
+        }
     }
 
     pub fn init(&mut self, initial_items: Vec<ConfigKeyBinding>) -> &mut Self {
@@ -41,7 +43,7 @@ impl KeyBindingView {
         let mut result: Vec<Span> = vec![Span::from(" ")];
         self.items.iter().enumerate().for_each(|item| {
             result.append(&mut item.1.as_span());
-            if item.0 < self.items.len()-1 {
+            if item.0 < self.items.len() - 1 {
                 result.push(Span::from(" | "))
             }
         });
@@ -74,21 +76,35 @@ pub struct KeyBindingItemView {
     action: String,
     ctrl_and_char: char, // ' ' => null
     key_code: KeyCode,
-    key_modifier: KeyModifiers
-
+    key_modifier: KeyModifiers,
 }
 
 impl KeyBindingItemView {
     pub fn new_ctrl_and_char(action: &str, ctrl_and_char: char) -> Self {
-        Self { action: action.parse().unwrap(), ctrl_and_char, key_code: Null, key_modifier: KeyModifiers::NONE }
+        Self {
+            action: action.parse().unwrap(),
+            ctrl_and_char,
+            key_code: Null,
+            key_modifier: KeyModifiers::NONE,
+        }
     }
 
     pub fn new_key_code(action: &str, key_code: KeyCode) -> Self {
-        Self { action: action.parse().unwrap(), ctrl_and_char: ' ', key_code, key_modifier: KeyModifiers::NONE }
+        Self {
+            action: action.parse().unwrap(),
+            ctrl_and_char: ' ',
+            key_code,
+            key_modifier: KeyModifiers::NONE,
+        }
     }
 
     pub fn new_key_modifier(action: &str, key_modifier: KeyModifiers) -> Self {
-        Self { action: action.parse().unwrap(), ctrl_and_char: ' ', key_code: Null, key_modifier }
+        Self {
+            action: action.parse().unwrap(),
+            ctrl_and_char: ' ',
+            key_code: Null,
+            key_modifier,
+        }
     }
 
     // return Line: "Action <Hotkey>" (e.g. "Quit <Ctrl+q>")
@@ -96,17 +112,17 @@ impl KeyBindingItemView {
         if self.ctrl_and_char != ' ' {
             vec![
                 Span::from(&self.action),
-                Span::from(format!(" <Ctrl+{}>", self.ctrl_and_char)).bold()
+                Span::from(format!(" <Ctrl+{}>", self.ctrl_and_char)).bold(),
             ]
         } else if self.key_code != Null {
             vec![
                 Span::from(&self.action),
-                Span::from(format!(" <{}>", self.key_code)).bold()
+                Span::from(format!(" <{}>", self.key_code)).bold(),
             ]
         } else {
             vec![
                 Span::from(&self.action),
-                Span::from(format!(" <{}>", self.key_modifier)).bold()
+                Span::from(format!(" <{}>", self.key_modifier)).bold(),
             ]
         }
     }

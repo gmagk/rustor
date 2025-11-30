@@ -4,7 +4,6 @@ use crate::dto::Response;
 pub struct Mapper {}
 
 impl Mapper {
-    
     pub fn json_to_response(&self, source: Vec<String>) -> Response {
         let str = source.iter().map(|x| x.to_string()).collect::<String>();
         serde_json::from_str(str.as_str()).unwrap()
