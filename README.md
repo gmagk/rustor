@@ -61,7 +61,6 @@ Release (pre-production): https://github.com/gmagk/rustor/releases/tag/1.0.0-alp
 | quit                       | Ctrl+q  |                                                                                    | Can be replaced with arg **--kb-quit={my-char}**                                                            |
 
 ## Customization
-> For now can be used only with command arguments and only for the *quit* shortcut
 
 | customization             | arg       | value type | comments                                  | example                                                                              |
 |---------------------------|-----------|------------|-------------------------------------------|--------------------------------------------------------------------------------------|
