@@ -1,13 +1,18 @@
+![screeshot](./screenshot.png)
 # About
 A simple torrent TUI for Linux (tested only on Ubuntu 25.10).  
 Uses [transmission-remote](https://transmissionbt.com) API and is written in Rust using Ratatui.
-
+<br/>
+<br/>
+<br/>
 # Built With
 - [Rust](https://rust-lang.org/)
 - [Ratatui](https://ratatui.rs/)
 - [tui-scrollview](https://crates.io/crates/tui-scrollview)
 - [tui-input](https://crates.io/crates/tui-input/0.14.0)
-
+  <br/>
+  <br/>
+  <br/>
 # Getting Started
 
 ## Prerequisites
@@ -38,7 +43,9 @@ Uses [transmission-remote](https://transmissionbt.com) API and is written in Rus
 
 ## Installation
 Release (pre-production): https://github.com/gmagk/rustor/releases/tag/1.0.0-alpha
-
+<br/>
+<br/>
+<br/>
 # Usage
 
 ## Key Bindings
@@ -62,11 +69,13 @@ Release (pre-production): https://github.com/gmagk/rustor/releases/tag/1.0.0-alp
 | change *help* key binding | --kb-help | char       | no check is done for any conflicting keys | **--kb-help=y** (now can use *Ctrl+y* for *help* screen instead of default *Ctrl+h*) |
 | change *quit* key binding | --kb-quit | char       | no check is done for any conflicting keys | **--kb-quit=z** (now can use *Ctrl+z* to *quit* instead of default *Ctrl+q*)         |
 > For convenience better add the whole command as an alias in the **.bashrc* file.
-
+<br/>
+<br/>
+<br/>
 # Contributing
 Any contributions made will be **really appreciated**.  
 Please open a new issue [here](https://github.com/gmagk/rustor/issues/new).
 
 ## License
-Copyright (c) gman <tbuhtexis@yahoo.com>
+Copyright (c) gman <tbuhtexis@yahoo.com>  
 This project is licensed under the MIT license ([LICENSE](./LICENSE) or http://opensource.org/licenses/MIT)
