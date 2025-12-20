@@ -1,7 +1,6 @@
-use crate::app::{KeyEventHandler, Renderable};
+use crate::app::{EmptyRenderableArgs, KeyEventHandler, Renderable, RenderableArgs};
 use crate::config::{Config, ConfigKeyBinding};
-use crate::service::Service;
-use crate::ui::view::view_key_bindings::{KeyBindingItemView, KeyBindingView};
+use crate::key_bindings::{KeyBindingItem, KeyBinding};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Flex, Layout};
@@ -10,37 +9,32 @@ use ratatui::symbols::border;
 use ratatui::widgets::{Block, Paragraph};
 use tui_input::Input;
 use tui_input::backend::crossterm::EventHandler;
+use crate::service::torrent_service::TorrentService;
+use crate::service::transmission_service::TransmissionService;
 
-#[derive(Clone)]
 pub struct AddScreen {
     config: Config,
-    input: Input,
-    service: Service,
+    input: Input
 }
 
 impl AddScreen {
-    pub fn new(config: Config, service: Service) -> Self {
-        Self {
-            config,
-            input: Input::new(String::default()),
-            service,
-        }
+    pub fn new(config: Config) -> Self {
+        Self { config, input: Input::new(String::default()) }
     }
 }
 
-impl Renderable for AddScreen {
-    fn render(&mut self, frame: &mut Frame, args: Vec<usize>) {
+impl Renderable<EmptyRenderableArgs> for AddScreen {
+    fn render(&mut self, frame: &mut Frame, args: EmptyRenderableArgs) {
         // frame
         let title = Line::from(" Add torrent ".bold());
-        let mut key_bindings = KeyBindingView::new(self.config.clone());
+        let mut key_bindings = KeyBinding::new(self.config.clone());
         key_bindings
             .init(vec![
                 ConfigKeyBinding::KbHome,
+                ConfigKeyBinding::KbSearch,
                 ConfigKeyBinding::KbHelp,
                 ConfigKeyBinding::KbQuit,
-            ])
-            .add(KeyBindingView::action("Add"))
-            .add(KeyBindingView::cancel());
+            ]).add(KeyBinding::cancel_action());
         let main_block = Block::bordered()
             .title(title.centered())
             .title_bottom(key_bindings.items_as_line().centered())
@@ -85,7 +79,7 @@ impl KeyEventHandler for AddScreen {
             match key_event.code {
                 // submit and leave
                 KeyCode::Enter => {
-                    self.service.torrent_add(self.input.value().to_string());
+                    TransmissionService::torrent_add(self.input.value().to_string());
                     self.input.reset();
                     false
                 }

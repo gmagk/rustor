@@ -1,9 +1,6 @@
-use crate::app::{KeyEventHandler, Renderable};
+use crate::app::{KeyEventHandler, Renderable, RenderableArgs};
 use crate::config::{Config, ConfigKeyBinding};
-use crate::dto::Torrent;
-use crate::mapper::Mapper;
-use crate::service::Service;
-use crate::ui::view::view_key_bindings::KeyBindingView;
+use crate::key_bindings::KeyBinding;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::Frame;
 use ratatui::buffer::Buffer;
@@ -11,29 +8,41 @@ use ratatui::layout::Rect;
 use ratatui::prelude::{Line, Stylize, Text, Widget};
 use ratatui::symbols::border;
 use ratatui::widgets::{Block, Paragraph};
+use crate::dto::transmission_dto::TransmissionTorrent;
+use crate::service::transmission_service::TransmissionService;
+use crate::screen::reann_screen::ReannScreen;
 
 #[derive(Clone, Copy)]
 pub struct RmScreen {
     config: Config,
-    service: Service,
-    mapper: Mapper,
     selected_row_index: usize,
 }
 
 impl RmScreen {
-    pub fn new(config: Config, service: Service, mapper: Mapper) -> Self {
-        Self {
-            config,
-            service,
-            mapper,
-            selected_row_index: 0,
-        }
+    pub fn new(config: Config,) -> Self {
+        Self { config, selected_row_index: 0 }
     }
 }
 
-impl Renderable for RmScreen {
-    fn render(&mut self, frame: &mut Frame, args: Vec<usize>) {
-        self.selected_row_index = args[0];
+pub struct RmScreenArgs {
+    selected_row_index: usize
+}
+
+impl RmScreenArgs {
+    pub fn new(selected_row_index: usize) -> Self {
+        Self { selected_row_index }
+    }
+
+    pub fn get_selected_row_index(&self) -> usize {
+        self.selected_row_index
+    }
+}
+
+impl RenderableArgs for RmScreenArgs {}
+
+impl Renderable<RmScreenArgs> for RmScreen {
+    fn render(&mut self, frame: &mut Frame, args: RmScreenArgs) {
+        self.selected_row_index = args.get_selected_row_index();
         frame.render_widget(*self, frame.area());
     }
 }
@@ -43,23 +52,22 @@ impl Widget for RmScreen {
     where
         Self: Sized,
     {
-        let torrents: Vec<Torrent> = self
-            .mapper
-            .json_to_response(self.service.torrent_list())
+        let torrents: Vec<TransmissionTorrent> = TransmissionService::torrent_list()
             .arguments
             .torrents;
         let info = torrents.get(self.selected_row_index).unwrap();
 
         let title = Line::from(" Remove torrent ".bold());
-        let mut key_bindings = KeyBindingView::new(self.config.clone());
+        let mut key_bindings = KeyBinding::new(self.config.clone());
         key_bindings
             .init(vec![
                 ConfigKeyBinding::KbHome,
+                ConfigKeyBinding::KbAdd,
+                ConfigKeyBinding::KbSearch,
                 ConfigKeyBinding::KbHelp,
                 ConfigKeyBinding::KbQuit,
-            ])
-            .add(KeyBindingView::action("Remove"))
-            .add(KeyBindingView::cancel());
+            ]).add(KeyBinding::action("Remove"))
+            .add(KeyBinding::cancel_action());
         let body = Text::from(vec![
             Line::from(vec!["".into()]),
             Line::from(vec![info.name.clone().into()]),
@@ -82,13 +90,10 @@ impl KeyEventHandler for RmScreen {
             match key_event.code {
                 // submit and leave
                 KeyCode::Enter => {
-                    let torrents: Vec<Torrent> = self
-                        .mapper
-                        .json_to_response(self.service.torrent_list())
+                    let torrents: Vec<TransmissionTorrent> = TransmissionService::torrent_list()
                         .arguments
                         .torrents;
-                    self.service
-                        .torrent_remove(torrents[self.selected_row_index].id.to_string());
+                    TransmissionService::torrent_remove(torrents[self.selected_row_index].id.to_string());
                     false
                 }
                 // leave

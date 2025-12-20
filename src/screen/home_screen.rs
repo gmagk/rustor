@@ -1,10 +1,6 @@
-use crate::app::{KeyEventHandler, Renderable, Screen};
+use crate::app::{EmptyRenderableArgs, KeyEventHandler, Renderable, RenderableArgs, Screen};
 use crate::config::{Config, ConfigKeyBinding};
-use crate::dto::Torrent;
-use crate::mapper::Mapper;
-use crate::service::Service;
-use crate::ui::view::view_key_bindings::{KeyBindingItemView, KeyBindingView};
-use crate::ui::view::view_torrent::TorrentView;
+use crate::key_bindings::{KeyBindingItem, KeyBinding};
 use crate::util::Util;
 use chrono::{DateTime, Local, Utc};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
@@ -17,29 +13,30 @@ use ratatui::text::{Line, StyledGrapheme};
 use ratatui::widgets::{Block, Cell, Padding, Paragraph, Row, Table, TableState};
 use std::fmt::Debug;
 use std::time::{Duration, UNIX_EPOCH};
+use crate::dto::transmission_dto::TransmissionTorrent;
+use crate::service::transmission_service::TransmissionService;
 
 #[derive(Default, Clone)]
 struct State {
     torrent_ids: Vec<i64>,
+    row_index_last_used_for_fetching_torrent: usize,
+    selected_row_torrent: TransmissionTorrent
 }
 
 #[derive(Clone)]
 pub struct HomeScreen {
     config: Config,
     table_state: TableState,
-    state: State,
-    service: Service,
-    mapper: Mapper,
+    state: State
 }
 
 impl HomeScreen {
-    pub fn new(config: Config, service: Service, mapper: Mapper) -> Self {
+
+    pub fn new(config: Config) -> Self {
         Self {
             config,
             table_state: TableState::default().with_selected(0),
-            state: State::default(),
-            service,
-            mapper,
+            state: State::default()
         }
     }
 
@@ -88,19 +85,37 @@ impl HomeScreen {
         self.table_state.selected().unwrap_or(0)
     }
 
-    fn table(self, torrents: &Vec<Torrent>) -> Table<'static> {
-        let rows = torrents.iter().enumerate().map(|(i, data)| {
+    pub fn active_row_torrent(&mut self) -> TransmissionTorrent {
+        let cur_sel_index = self.table_state.selected().unwrap_or(0);
+        if  self.state.selected_row_torrent.id != 0 &&
+            self.state.row_index_last_used_for_fetching_torrent == cur_sel_index {
+
+            return self.state.selected_row_torrent.clone()
+        }
+
+        self.state.row_index_last_used_for_fetching_torrent = cur_sel_index.clone();
+        let torrent_id = self.state.torrent_ids[cur_sel_index].to_string();
+        let torrent = TransmissionService::torrent_info(torrent_id)
+            .arguments
+            .torrents[0].clone();
+        self.state.selected_row_torrent = torrent.clone();
+
+        torrent.clone()
+    }
+
+    fn table(self, torrents: &Vec<TransmissionTorrent>) -> Table<'static> {
+        let rows = torrents.iter().enumerate().map(|(i, torrent)| {
             let item = [
-                &data.id.to_string(),
-                &data.name,
-                &TorrentView::eta(data),
-                &TorrentView::percentage_done(data).to_string(),
-                &TorrentView::download_rate(data).to_string(),
-                &TorrentView::upload_rate(data).to_string(),
-                &TorrentView::total_size(data),
-                &TorrentView::downloaded(data),
-                &TorrentView::added_on(data),
-                &TorrentView::peers_client_name(data),
+                &torrent.id.to_string(),
+                &torrent.name,
+                &torrent.eta(),
+                &torrent.percentage_done(),
+                &torrent.download_rate(),
+                &torrent.upload_rate(),
+                &torrent.total_size(),
+                &torrent.downloaded(),
+                &Util::print_epoch(torrent.added_date as u64),
+                &torrent.peers_client_name(),
             ];
             // TODO show tor error
             // TODO show done status
@@ -150,7 +165,7 @@ impl HomeScreen {
     }
 
     // Find for name column which row has the largest (this is done only for string values which might be too long)
-    fn name_len(&self, items: &Vec<Torrent>) -> u16 {
+    fn name_len(&self, items: &Vec<TransmissionTorrent>) -> u16 {
         items
             .iter()
             .map(|t| t.name.chars().count())
@@ -159,32 +174,34 @@ impl HomeScreen {
     }
 
     // Find for combined peers.client_name column which row has the largest (this is done only for string values which might be too long)
-    fn peer_client_name_len(&self, items: &Vec<Torrent>) -> u16 {
+    fn peer_client_name_len(&self, items: &Vec<TransmissionTorrent>) -> u16 {
         items
             .iter()
-            .map(|t| TorrentView::peers_client_name(t).chars().count())
+            .map(|torrent| torrent.peers_client_name().chars().count())
             .max()
             .unwrap_or(0) as u16
     }
 }
 
-impl Renderable for HomeScreen {
-    fn render(&mut self, frame: &mut Frame, args: Vec<usize>) {
-        let torrents: Vec<Torrent> = self
-            .mapper
-            .json_to_response(self.service.torrent_list())
+impl Renderable<EmptyRenderableArgs> for HomeScreen {
+    fn render(&mut self, frame: &mut Frame, args: EmptyRenderableArgs) {
+        let torrents: Vec<TransmissionTorrent> = TransmissionService::torrent_list()
             .arguments
             .torrents;
         self.state.torrent_ids.extend(torrents.iter().map(|t| t.id));
 
         let title = Line::from(" All torrents ".bold());
-        let mut key_bindings = KeyBindingView::new(self.config.clone());
+        let mut key_bindings = KeyBinding::new(self.config.clone());
         key_bindings
-            .init(vec![ConfigKeyBinding::KbHelp, ConfigKeyBinding::KbQuit])
-            .add(KeyBindingItemView::new_ctrl_and_char("Add", 'a'))
-            .add(KeyBindingItemView::new_ctrl_and_char("Remove", 'd'))
-            .add(KeyBindingItemView::new_ctrl_and_char("Torrent", 't'))
-            .add(KeyBindingItemView::new_ctrl_and_char("Reannounce", 'r'));
+            .init(vec![
+                ConfigKeyBinding::KbAdd,
+                ConfigKeyBinding::KbSearch, 
+                ConfigKeyBinding::KbHelp, 
+                ConfigKeyBinding::KbQuit
+            ]).add(KeyBindingItem::new_ctrl_and_char("Remove", 'd'))
+            .add(KeyBindingItem::new_ctrl_and_char("Torrent", 't'))
+            .add(KeyBindingItem::new_ctrl_and_char("Open directory", 'o'))
+            .add(KeyBindingItem::new_ctrl_and_char("Reannounce", 'r'));
         let block = Block::bordered()
             .title(title.centered())
             .title_bottom(key_bindings.items_as_line().centered())
@@ -222,28 +239,21 @@ impl KeyEventHandler for HomeScreen {
                 }
                 KeyCode::Char('s') => {
                     if shft {
-                        let cur_sel_indx = self.table_state.selected().unwrap();
-                        self.service
-                            .torrent_stop(self.state.torrent_ids[cur_sel_indx].to_string());
+                        let cur_sel_indx = self.active_row();
+                        TransmissionService::torrent_stop(self.state.torrent_ids[cur_sel_indx].to_string());
                         false
                     } else {
                         let cur_sel_indx = self.table_state.selected().unwrap();
-                        self.service
-                            .torrent_start(self.state.torrent_ids[cur_sel_indx].to_string());
+                        TransmissionService::torrent_start(self.state.torrent_ids[cur_sel_indx].to_string());
                         false
                     }
                 }
                 KeyCode::Char('o') => {
                     let cur_sel_index = self.table_state.selected().unwrap();
-                    let torrent_info = self
-                        .service
-                        .torrent_info(self.state.torrent_ids[cur_sel_index].to_string());
-                    let torrent: &Torrent = &self
-                        .mapper
-                        .json_to_response(torrent_info)
+                    let torrent = &TransmissionService::torrent_info(self.state.torrent_ids[cur_sel_index].to_string())
                         .arguments
                         .torrents[0];
-                    self.service.torrent_location(&torrent);
+                    TransmissionService::torrent_location(&torrent);
                     false
                 }
                 _ => true,

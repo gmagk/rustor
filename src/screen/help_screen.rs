@@ -1,6 +1,6 @@
-use crate::app::{KeyEventHandler, Renderable};
+use crate::app::{EmptyRenderableArgs, KeyEventHandler, Renderable, RenderableArgs};
 use crate::config::{Config, ConfigKeyBinding};
-use crate::ui::view::view_key_bindings::{KeyBindingItemView, KeyBindingView};
+use crate::key_bindings::{KeyBindingItem, KeyBinding};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::Frame;
 use ratatui::buffer::Buffer;
@@ -20,8 +20,8 @@ impl HelpScreen {
     }
 }
 
-impl Renderable for HelpScreen {
-    fn render(&mut self, frame: &mut Frame, args: Vec<usize>) {
+impl Renderable<EmptyRenderableArgs> for HelpScreen {
+    fn render(&mut self, frame: &mut Frame, args: EmptyRenderableArgs) {
         frame.render_widget(*self, frame.area());
     }
 }
@@ -29,8 +29,13 @@ impl Renderable for HelpScreen {
 impl Widget for HelpScreen {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let title = Line::from(" Help ".bold());
-        let mut key_bindings = KeyBindingView::new(self.config.clone());
-        key_bindings.init(vec![ConfigKeyBinding::KbHome, ConfigKeyBinding::KbQuit]);
+        let mut key_bindings = KeyBinding::new(self.config.clone());
+        key_bindings.init(vec![
+            ConfigKeyBinding::KbHome,
+            ConfigKeyBinding::KbAdd,
+            ConfigKeyBinding::KbSearch,
+            ConfigKeyBinding::KbQuit
+        ]);
         let body = Text::from(vec![Line::from(vec![
             "All available keybindings are shown on the bottom of each screen.".into(),
         ])]);

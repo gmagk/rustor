@@ -1,4 +1,7 @@
+use std::time::{Duration, UNIX_EPOCH};
+use chrono::{DateTime, Local, Utc};
 use crossterm::event::{KeyEvent, KeyModifiers};
+use crate::dto::transmission_dto::TransmissionTorrent;
 
 pub struct Util {}
 
@@ -29,5 +32,11 @@ impl Util {
         }
 
         format!("{:.2} {postfix}", res)
+    }
+
+    pub fn print_epoch(epoch: u64) -> String {
+        let d = UNIX_EPOCH + Duration::from_secs(epoch);
+        let datetime = DateTime::<Utc>::from(d).with_timezone(&Local);
+        datetime.format("%Y-%m-%d %H:%M:%S").to_string()
     }
 }

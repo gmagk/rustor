@@ -1,8 +1,9 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize};
+use crate::util::Util;
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Clone,  Deserialize)]
 #[serde(default)] // automatically use a default value when none is present in the data
-pub struct Torrent {
+pub struct TransmissionTorrent {
     #[serde(rename = "activityDate")]
     pub activity_date: i64,
     #[serde(rename = "addedDate")]
@@ -31,7 +32,7 @@ pub struct Torrent {
     #[serde(rename = "errorString")]
     pub error_string: String,
     pub eta: i64,
-    pub files: Vec<File>,
+    pub files: Vec<TransmissionTorrentFile>,
     pub group: String,
     #[serde(rename = "hashString")]
     pub hash_string: String,
@@ -53,7 +54,7 @@ pub struct Torrent {
     pub magnet_link: String,
     // TODO add filePath
     pub name: String,
-    pub peers: Vec<Peer>,
+    pub peers: Vec<TransmissionTorrentPeer>,
     #[serde(rename = "peer-limit")]
     pub peer_limit: i64,
     #[serde(rename = "peersConnected")]
@@ -94,7 +95,7 @@ pub struct Torrent {
     #[serde(rename = "totalSize")]
     pub total_size: i64,
     #[serde(rename = "trackerStats")]
-    pub tracker_stats: Vec<TrackerStat>,
+    pub tracker_stats: Vec<TransmissionTorrentTrackerStat>,
     #[serde(rename = "uploadLimit")]
     pub upload_limit: i64,
     #[serde(rename = "uploadLimited")]
@@ -108,8 +109,79 @@ pub struct Torrent {
     pub webseeds_sending_to_us: i64,
 }
 
-impl Torrent {
-    pub fn percentage_done(&self) -> f64 {
+impl TransmissionTorrent {
+    pub fn eta(&self) -> String {
+        if self.left_until_done == 0 {
+            return "Done".to_string();
+        }
+
+        if self.eta <= 0 {
+            return "Unknown".to_string();
+        }
+
+        let seconds = self.eta % 60;
+        let minutes = (self.eta / 60) % 60;
+        let hours = (self.eta / 60 / 60) % 60;
+        let days = (self.eta / 60 / 60 / 24) % 24;
+
+        let time = format!("{:0>2}:{:0>2}:{:0>2}", hours, minutes, seconds);
+        if days > 0 {
+            format!("{days} days {time}")
+        } else {
+            time
+        }
+    }
+
+    pub fn percentage_done(&self) -> String {
+        format!("{:.2} %", self.calc_percentage_done())
+    }
+
+    pub fn calc_ratio(&self) -> f64 {
+        self.calc_percentage_done() / 100f64
+    }
+
+    pub fn download_rate(&self) -> String {
+        format!("\u{2193} {} kB/s", (self.rate_download / 1000) % 1000)
+    }
+
+    pub fn upload_rate(&self) -> String {
+        format!("\u{2191} {} kB/s", (self.rate_upload / 1000) % 1000)
+    }
+
+    pub fn total_size(&self) -> String {
+        if self.size_when_done <= 0 {
+            return "".to_string();
+        }
+
+        Util::print_bytes(self.size_when_done as f64)
+    }
+
+    pub fn downloaded(&self) -> String {
+        Util::print_bytes((self.size_when_done - self.left_until_done) as f64)
+    }
+
+    pub fn peers_client_name(&self) -> String {
+        if self.peers.len() == 0 {
+            return String::default();
+        }
+
+        let mut res = self
+            .peers
+            .iter()
+            .map(|peer| peer.client_name.clone())
+            .reduce(|mut accumulator, s| {
+                accumulator.push_str(&s);
+                accumulator.push(',');
+                accumulator.push(' ');
+                accumulator
+            })
+            .unwrap();
+        res.pop();
+        res.pop();
+        res
+    }
+
+    fn calc_percentage_done(&self) -> f64 {
         if self.left_until_done == 0 {
             return 100f64;
         }
@@ -120,9 +192,9 @@ impl Torrent {
     }
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Clone, Deserialize)]
 #[serde(default)] // automatically use a default value when none is present in the data
-pub struct Peer {
+pub struct TransmissionTorrentPeer {
     pub address: String,
     #[serde(rename = "clientIsChoked")]
     pub client_is_choked: bool,
@@ -154,9 +226,9 @@ pub struct Peer {
     pub rate_to_peer: i64,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Clone, Deserialize)]
 #[serde(default)] // automatically use a default value when none is present in the data
-pub struct TrackerStat {
+pub struct TransmissionTorrentTrackerStat {
     pub announce: String,
     #[serde(rename = "announceState")]
     pub announce_state: i64,
@@ -207,9 +279,9 @@ pub struct TrackerStat {
     pub tier: i64,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Clone, Deserialize)]
 #[serde(default)] // automatically use a default value when none is present in the data
-pub struct File {
+pub struct TransmissionTorrentFile {
     pub begin_piece: i64,
     #[serde(rename = "bytesCompleted")]
     pub bytes_completed: i64,
@@ -218,25 +290,25 @@ pub struct File {
     pub name: String,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Deserialize)]
 #[serde(default)] // automatically use a default value when none is present in the data
-pub struct Files {
-    pub files: Vec<File>,
+pub struct TransmissionTorrentFiles {
+    pub files: Vec<TransmissionTorrentFile>,
     pub name: String,
     pub priorities: Vec<i64>,
     pub wanted: Vec<i64>,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Deserialize)]
 #[serde(default)] // automatically use a default value when none is present in the data
-pub struct Arguments {
-    pub torrents: Vec<Torrent>,
+pub struct TransmissionResponseArguments {
+    pub torrents: Vec<TransmissionTorrent>,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Deserialize)]
 #[serde(default)] // automatically use a default value when none is present in the data
-pub struct Response {
-    pub arguments: Arguments,
+pub struct TransmissionResponse {
+    pub arguments: TransmissionResponseArguments,
     pub result: String,
     pub tag: i64,
 }

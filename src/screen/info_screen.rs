@@ -1,10 +1,6 @@
-use crate::app::{KeyEventHandler, Renderable};
+use crate::app::{EmptyRenderableArgs, KeyEventHandler, Renderable, RenderableArgs};
 use crate::config::{Config, ConfigKeyBinding};
-use crate::dto::Torrent;
-use crate::mapper::Mapper;
-use crate::service::Service;
-use crate::ui::view::view_key_bindings::KeyBindingView;
-use crate::ui::view::view_torrent::TorrentView;
+use crate::key_bindings::KeyBinding;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Constraint::{Fill, Length, Min, Percentage};
@@ -20,12 +16,13 @@ use ratatui::widgets::{
 use ratatui::{Frame, symbols};
 use std::ops::Add;
 use tui_scrollview::{ScrollView, ScrollViewState};
+use crate::dto::transmission_dto::TransmissionTorrent;
+use crate::service::transmission_service::TransmissionService;
+use crate::util::Util;
 
 pub struct InfoScreen {
     config: Config,
-    service: Service,
-    mapper: Mapper,
-    selected_row_index: usize,
+    selected_row_torrent: TransmissionTorrent,
     vertical_scroll_state: ScrollbarState,
     scroll_view_state: ScrollViewState,
     vertical_scroll: usize,
@@ -33,12 +30,10 @@ pub struct InfoScreen {
 }
 
 impl InfoScreen {
-    pub fn new(config: Config, service: Service, mapper: Mapper) -> Self {
+    pub fn new(config: Config) -> Self {
         Self {
             config,
-            service,
-            mapper,
-            selected_row_index: 0,
+            selected_row_torrent: Default::default(),
             vertical_scroll_state: ScrollbarState::default(),
             scroll_view_state: ScrollViewState::default(),
             vertical_scroll: 0,
@@ -56,12 +51,12 @@ impl InfoScreen {
     }
 
     fn bars(&self) -> BarGroup<'static> {
-        let CHART_DATA: [(&str, u64, Color); 3] = [
+        let char_data: [(&str, u64, Color); 3] = [
             ("Red", 2, Color::Red),
             ("Green", 7, Color::Green),
             ("Blue", 11, Color::Blue),
         ];
-        let data = CHART_DATA.map(|(label, value, color)| {
+        let data = char_data.map(|(label, value, color)| {
             Bar::default().label(label.into()).value(value).style(color)
         });
         BarGroup::default().bars(&data)
@@ -85,16 +80,26 @@ impl InfoScreen {
     }
 }
 
-impl Renderable for InfoScreen {
-    fn render(&mut self, frame: &mut Frame, args: Vec<usize>) {
-        self.selected_row_index = args[0];
+pub struct InfoScreenArgs {
+    selected_row_torrent: TransmissionTorrent
+}
 
-        let torrents: Vec<Torrent> = self
-            .mapper
-            .json_to_response(self.service.torrent_list())
-            .arguments
-            .torrents;
-        let torrent = torrents.get(self.selected_row_index).unwrap();
+impl InfoScreenArgs {
+    pub fn new(selected_row_torrent: TransmissionTorrent) -> Self {
+        Self { selected_row_torrent }
+    }
+    
+    pub fn get_selected_row_torrent(&self) -> TransmissionTorrent {
+        self.selected_row_torrent.clone()
+    }
+}
+
+impl RenderableArgs for InfoScreenArgs {}
+
+impl Renderable<InfoScreenArgs> for InfoScreen {
+    fn render(&mut self, frame: &mut Frame, args: InfoScreenArgs) {
+        self.selected_row_torrent = args.get_selected_row_torrent();
+        let torrent = self.selected_row_torrent.clone();
 
         let scroll_view_height = 30;
         let buf = frame.buffer_mut();
@@ -127,40 +132,34 @@ impl Renderable for InfoScreen {
             .block(block)
             .filled_style(gauge_style)
             .line_set(symbols::line::NORMAL)
-            .ratio(torrent.percentage_done() / 100f64)
+            .ratio(torrent.calc_ratio())
             .render(gauge_area, scroll_view_buf);
 
         // info
-        let mut key_bindings = KeyBindingView::new(self.config.clone());
-        key_bindings.init(vec![
-            ConfigKeyBinding::KbHome,
-            ConfigKeyBinding::KbHelp,
-            ConfigKeyBinding::KbQuit,
-        ]);
         block = Block::bordered()
             .title(" Info ")
             .padding(Padding::uniform(1));
         let info = vec![
-            Line::from("ETA: ".to_string().add(TorrentView::eta(torrent).as_str())),
+            Line::from("ETA: ".to_string().add(torrent.eta().as_str())),
             Line::from(
                 "Size: "
                     .to_string()
-                    .add(TorrentView::total_size(torrent).as_str()),
+                    .add(torrent.total_size().as_str()),
             ),
             Line::from(
                 "Added on: "
                     .to_string()
-                    .add(TorrentView::added_on(torrent).as_str()),
+                    .add(Util::print_epoch(torrent.added_date as u64).as_str()),
             ),
             Line::from(
                 "Download: "
                     .to_string()
-                    .add(TorrentView::download_rate(torrent).as_str()),
+                    .add(torrent.download_rate().as_str()),
             ),
             Line::from(
                 "Upload: "
                     .to_string()
-                    .add(TorrentView::upload_rate(torrent).as_str()),
+                    .add(torrent.upload_rate().as_str()),
             ),
         ];
         Paragraph::new(info)
@@ -188,6 +187,14 @@ impl Renderable for InfoScreen {
         .render(peers_area, scroll_view_buf);
 
         // bottom
+        let mut key_bindings = KeyBinding::new(self.config.clone());
+        key_bindings.init(vec![
+                ConfigKeyBinding::KbHome,
+                ConfigKeyBinding::KbAdd,
+                ConfigKeyBinding::KbSearch,
+                ConfigKeyBinding::KbHelp,
+                ConfigKeyBinding::KbQuit,
+            ]).add(KeyBinding::cancel_action());
         Line::from(key_bindings.items_as_line())
             .centered()
             .render(bottom_area, scroll_view_buf);

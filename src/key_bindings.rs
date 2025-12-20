@@ -5,12 +5,12 @@ use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::style::Stylize;
 use ratatui::text::{Line, Span};
 
-pub struct KeyBindingView {
+pub struct KeyBinding {
     config: Config,
-    items: Vec<KeyBindingItemView>,
+    items: Vec<KeyBindingItem>,
 }
 
-impl KeyBindingView {
+impl KeyBinding {
     pub fn new(config: Config) -> Self {
         Self {
             config,
@@ -21,20 +21,26 @@ impl KeyBindingView {
     pub fn init(&mut self, initial_items: Vec<ConfigKeyBinding>) -> &mut Self {
         initial_items.iter().for_each(|item| {
             if ConfigKeyBinding::KbHome.eq(item) {
-                let item = self.home();
+                let item = self.home_action();
+                self.add(item);
+            } else if ConfigKeyBinding::KbAdd.eq(item) {
+                let item = self.add_action();
+                self.add(item);
+            } else if ConfigKeyBinding::KbSearch.eq(item) {
+                let item = self.search_action();
                 self.add(item);
             } else if ConfigKeyBinding::KbHelp.eq(item) {
-                let item = self.help();
+                let item = self.help_action();
                 self.add(item);
             } else if ConfigKeyBinding::KbQuit.eq(item) {
-                let item = self.quit();
+                let item = self.quit_action();
                 self.add(item);
             }
         });
         self
     }
 
-    pub fn add(&mut self, item: KeyBindingItemView) -> &mut Self {
+    pub fn add(&mut self, item: KeyBindingItem) -> &mut Self {
         self.items.push(item);
         self
     }
@@ -51,35 +57,43 @@ impl KeyBindingView {
         Line::from(result)
     }
 
-    pub fn cancel() -> KeyBindingItemView {
-        KeyBindingItemView::new_key_code("Cancel", KeyCode::Esc)
+    pub fn cancel_action() -> KeyBindingItem {
+        KeyBindingItem::new_key_code("Cancel", KeyCode::Esc)
     }
 
-    pub fn quit(&mut self) -> KeyBindingItemView {
-        KeyBindingItemView::new_ctrl_and_char("Quit", self.config.kb_quit())
+    pub fn quit_action(&mut self) -> KeyBindingItem {
+        KeyBindingItem::new_ctrl_and_char("Quit", self.config.kb_quit())
     }
 
-    pub fn home(&mut self) -> KeyBindingItemView {
-        KeyBindingItemView::new_ctrl_and_char("Home", self.config.kb_home())
+    pub fn home_action(&mut self) -> KeyBindingItem {
+        KeyBindingItem::new_ctrl_and_char("Home", self.config.kb_home())
     }
 
-    pub fn help(&mut self) -> KeyBindingItemView {
-        KeyBindingItemView::new_ctrl_and_char("Help", self.config.kb_help())
+    pub fn add_action(&mut self) -> KeyBindingItem {
+        KeyBindingItem::new_ctrl_and_char("Add", self.config.kb_add())
     }
 
-    pub fn action(act: &str) -> KeyBindingItemView {
-        KeyBindingItemView::new_key_code(act, KeyCode::Enter)
+    pub fn search_action(&mut self) -> KeyBindingItem {
+        KeyBindingItem::new_ctrl_and_char("Search", self.config.kb_search())
+    }
+
+    pub fn help_action(&mut self) -> KeyBindingItem {
+        KeyBindingItem::new_ctrl_and_char("Help", self.config.kb_help())
+    }
+
+    pub fn action(act: &str) -> KeyBindingItem {
+        KeyBindingItem::new_key_code(act, KeyCode::Enter)
     }
 }
 
-pub struct KeyBindingItemView {
+pub struct KeyBindingItem {
     action: String,
     ctrl_and_char: char, // ' ' => null
     key_code: KeyCode,
     key_modifier: KeyModifiers,
 }
 
-impl KeyBindingItemView {
+impl KeyBindingItem {
     pub fn new_ctrl_and_char(action: &str, ctrl_and_char: char) -> Self {
         Self {
             action: action.parse().unwrap(),

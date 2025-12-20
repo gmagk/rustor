@@ -3,10 +3,12 @@
 mod app;
 mod config;
 mod dto;
-mod mapper;
 mod service;
-mod ui;
+mod screen;
 mod util;
+mod client;
+mod key_bindings;
+mod mapper;
 
 use crate::app::App;
 use crate::config::Config;

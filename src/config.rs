@@ -1,6 +1,8 @@
 #[derive(Default, Clone, Copy)]
 pub struct Config {
     kb_home: char,
+    kb_add: char,
+    kb_search: char,
     kb_help: char,
     kb_quit: char,
 }
@@ -8,8 +10,10 @@ pub struct Config {
 #[derive(PartialEq)]
 pub enum ConfigKeyBinding {
     KbHome,
+    KbAdd,
+    KbSearch,
     KbHelp,
-    KbQuit,
+    KbQuit
 }
 
 impl Config {
@@ -17,13 +21,23 @@ impl Config {
         let parsed_args = Self::parse_args(args);
         Self {
             kb_home: parsed_args.get(0).unwrap().1.chars().next().unwrap(),
-            kb_help: parsed_args.get(1).unwrap().1.chars().next().unwrap(),
-            kb_quit: parsed_args.get(2).unwrap().1.chars().next().unwrap(),
+            kb_add: parsed_args.get(1).unwrap().1.chars().next().unwrap(),
+            kb_search: parsed_args.get(2).unwrap().1.chars().next().unwrap(),
+            kb_help: parsed_args.get(3).unwrap().1.chars().next().unwrap(),
+            kb_quit: parsed_args.get(4).unwrap().1.chars().next().unwrap(),
         }
     }
 
     pub fn kb_home(&self) -> char {
         self.kb_home
+    }
+
+    pub fn kb_add(&self) -> char {
+        self.kb_add
+    }
+
+    pub fn kb_search(&self) -> char {
+        self.kb_search
     }
 
     pub fn kb_help(&self) -> char {
@@ -37,16 +51,22 @@ impl Config {
     fn parse_args(args: Vec<String>) -> Vec<(ConfigKeyBinding, String)> {
         let mut result = vec![
             (ConfigKeyBinding::KbHome, "b".to_string()),
+            (ConfigKeyBinding::KbAdd, "a".to_string()),
+            (ConfigKeyBinding::KbSearch, "y".to_string()),
             (ConfigKeyBinding::KbHelp, "h".to_string()),
             (ConfigKeyBinding::KbQuit, "q".to_string()),
         ];
         args.iter().for_each(|arg| {
             if arg.starts_with("--kb-home=") {
                 Self::replace_kb(&mut result, arg, 0, ConfigKeyBinding::KbHome);
+            } else if arg.starts_with("--kb-add=") {
+                Self::replace_kb(&mut result, arg, 1, ConfigKeyBinding::KbAdd);
             } else if arg.starts_with("--kb-help=") {
-                Self::replace_kb(&mut result, arg, 1, ConfigKeyBinding::KbHelp);
+                Self::replace_kb(&mut result, arg, 2, ConfigKeyBinding::KbSearch);
+            } else if arg.starts_with("--kb-search=") {
+                Self::replace_kb(&mut result, arg, 3, ConfigKeyBinding::KbHelp);
             } else if arg.starts_with("--kb-quit=") {
-                Self::replace_kb(&mut result, arg, 2, ConfigKeyBinding::KbQuit);
+                Self::replace_kb(&mut result, arg, 4, ConfigKeyBinding::KbQuit);
             }
         });
         result
