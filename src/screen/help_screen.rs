@@ -1,6 +1,7 @@
+use std::collections::HashMap;
 use crate::app::{EmptyRenderableArgs, KeyEventHandler, Renderable, RenderableArgs};
-use crate::config::{Config, ConfigKeyBinding};
-use crate::key_bindings::{KeyBindingItem, KeyBinding};
+use crate::config::{Config, ConfigKeyBindingKey};
+use crate::screen::key_bindings_block::{KeyBindingItem, KeyBindingsBlock};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::Frame;
 use ratatui::buffer::Buffer;
@@ -9,39 +10,41 @@ use ratatui::prelude::{Line, Stylize, Text, Widget};
 use ratatui::symbols::border;
 use ratatui::widgets::{Block, Paragraph};
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct HelpScreen {
-    config: Config,
+    config_key_bindings: HashMap<ConfigKeyBindingKey, char>
 }
 
 impl HelpScreen {
-    pub fn new(config: Config) -> Self {
-        Self { config }
+    pub fn new(config_key_bindings: HashMap<ConfigKeyBindingKey, char>) -> Self {
+        Self { config_key_bindings }
     }
 }
 
 impl Renderable<EmptyRenderableArgs> for HelpScreen {
     fn render(&mut self, frame: &mut Frame, args: EmptyRenderableArgs) {
-        frame.render_widget(*self, frame.area());
+        frame.render_widget(self.clone(), frame.area());
     }
 }
 
 impl Widget for HelpScreen {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let title = Line::from(" Help ".bold());
-        let mut key_bindings = KeyBinding::new(self.config.clone());
-        key_bindings.init(vec![
-            ConfigKeyBinding::KbHome,
-            ConfigKeyBinding::KbAdd,
-            ConfigKeyBinding::KbSearch,
-            ConfigKeyBinding::KbQuit
-        ]);
+        let mut key_bindings_block = KeyBindingsBlock::new(self.config_key_bindings.clone());
+        let key_bindings = vec![
+            key_bindings_block.cnf_kb_home(),
+            key_bindings_block.cnf_kb_add(),
+            key_bindings_block.cnf_kb_search(),
+            KeyBindingsBlock::kb_cancel(),
+            key_bindings_block.cnf_kb_quit()
+        ];
+        let bottom_line = KeyBindingsBlock::key_bindings_as_line(&key_bindings);
         let body = Text::from(vec![Line::from(vec![
             "All available keybindings are shown on the bottom of each screen.".into(),
         ])]);
         let block = Block::bordered()
             .title(title.centered())
-            .title_bottom(key_bindings.items_as_line().centered())
+            .title_bottom(bottom_line.centered())
             .border_set(border::THICK);
         Paragraph::new(body)
             .centered()
@@ -58,9 +61,6 @@ impl KeyEventHandler for HelpScreen {
                 // do not leave (maybe it will change in the future)
                 _ => false,
             }
-        } else if key_event.kind == KeyEventKind::Repeat {
-            // TODO handle for command input
-            true
         } else {
             false
         }

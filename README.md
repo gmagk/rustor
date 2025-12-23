@@ -1,4 +1,22 @@
-![screeshot](./screenshot.png)
+### Search for torrents
+1. Search term
+![screeshot](./rustor-search-0.png)
+2. Search results
+![screeshot](./rustor-search-1.png)
+3. Pending download
+![screeshot](./rustor-search-2.png)
+4. Download started
+![screeshot](./rustor-search-3.png)
+---
+### New torrent from local-file or magnet-link
+1. Add torrent
+![screeshot](./rustor-add-0.png)
+2. Pending download
+![screeshot](./rustor-add-1.png)
+3. Download started
+![screeshot](./rustor-add-2.png)
+---
+
 # About
 A simple torrent TUI for Linux (tested only on Ubuntu 25.10).  
 Uses [transmission-remote](https://transmissionbt.com) API and is written in Rust using Ratatui.
@@ -40,17 +58,51 @@ Uses [transmission-remote](https://transmissionbt.com) API and is written in Rus
 ## Installation
 Release (pre-production): https://github.com/gmagk/rustube/releases/tag/1.0.0-alpha
 
-## Key Bindings Customization
-#### _(no check is done for any conflicting keys)_
-#### example: `../rustor --kb-home=g` _now can use *Ctrl+g* for *home* screen_
-| action        | arg         |
-|---------------|-------------|
-| home screen   | --kb-home   |
-| add screen    | --kb-add    |
-| search screen | --kb-search |
-| help screen   | --kb-help   |
-| quit          | --kb-quit   |
-> For convenience better add the whole command as an alias in the **.bashrc* file.
+## Configuration
+
+#### Configuration file (.toml)
+- **No** file _(config file is not required, at least for the current version)_
+- **Default** location `$HOME/.rustor/config.toml`
+- **Custom** location using the cli argument `--config-file </path/to/file>`  
+  _(for convenience better add the whole command as an alias in the **.bashrc* file)_.  
+  Once a custom config file is provided it should contain (even empty) the following structure:  
+  ```toml
+  [key_bindings]
+  ```
+  > All key-bindings which can be configured need the **Ctrl** prefix in order to be used.  
+  > _(no check is done for any conflicting keys)_
+  > 
+  Example of custom config file:
+  ```toml
+  [key_bindings]
+  KbHome = "p" # Now `Ctrl+p` will navigate to Home screen
+  ```
+
+<br/>
+
+#### Default key-bindings
+| key        | value | description                                           |
+|------------|-------|-------------------------------------------------------|
+| KbAdd      | "a"   | add new torrent                                       |
+| KbDel      | "d"   | remove selected torrent in __Home__                   |
+| KbDownload | "d"   | download selected torrent screen in __Search Results__ |
+| KbInfo     | "i"   | show info for torrent in __Home__ or __Search Results__ |
+| KbHelp     | "h"   | go to __Help__                                        |
+| KbHome     | "b"   | go to __Home__                                        |
+| KbQuit     | "q"   | quit                                                  |
+| KbReAnn    | "r"   | reannounce torrent in __Home__                        |
+| KbSearch   | "s"   | search for torrents                                   |
+
+<br/>
+
+#### Navigation keys
+| key       | description |
+|-----------|-------------|
+| "j"       | down        |
+| "k"       | up          |
+| "&#8595;" | down        |
+| "&#8593;" | up          |
+
 
 # Contributing
 Any contributions made will be **really appreciated**.  

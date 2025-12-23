@@ -1,6 +1,6 @@
+use std::collections::HashMap;
 use crate::app::{EmptyRenderableArgs, KeyEventHandler, Renderable, RenderableArgs};
-use crate::config::{Config, ConfigKeyBinding};
-use crate::key_bindings::{KeyBindingItem, KeyBinding};
+use crate::screen::key_bindings_block::{KeyBindingItem, KeyBindingsBlock};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Flex, Layout};
@@ -9,17 +9,18 @@ use ratatui::symbols::border;
 use ratatui::widgets::{Block, Paragraph};
 use tui_input::Input;
 use tui_input::backend::crossterm::EventHandler;
+use crate::config::{Config, ConfigKeyBindingKey};
 use crate::service::torrent_service::TorrentService;
 use crate::service::transmission_service::TransmissionService;
 
 pub struct AddScreen {
-    config: Config,
+    config_key_bindings: HashMap<ConfigKeyBindingKey, char>,
     input: Input
 }
 
 impl AddScreen {
-    pub fn new(config: Config) -> Self {
-        Self { config, input: Input::new(String::default()) }
+    pub fn new(config_key_bindings: HashMap<ConfigKeyBindingKey, char>) -> Self {
+        Self { config_key_bindings, input: Input::new(String::default()) }
     }
 }
 
@@ -27,17 +28,18 @@ impl Renderable<EmptyRenderableArgs> for AddScreen {
     fn render(&mut self, frame: &mut Frame, args: EmptyRenderableArgs) {
         // frame
         let title = Line::from(" Add torrent ".bold());
-        let mut key_bindings = KeyBinding::new(self.config.clone());
-        key_bindings
-            .init(vec![
-                ConfigKeyBinding::KbHome,
-                ConfigKeyBinding::KbSearch,
-                ConfigKeyBinding::KbHelp,
-                ConfigKeyBinding::KbQuit,
-            ]).add(KeyBinding::cancel_action());
+        let mut key_bindings_block = KeyBindingsBlock::new(self.config_key_bindings.clone());
+        let key_bindings = vec![
+            key_bindings_block.cnf_kb_home(),
+            key_bindings_block.cnf_kb_search(),
+            KeyBindingsBlock::kb_cancel(),
+            key_bindings_block.cnf_kb_help(),
+            key_bindings_block.cnf_kb_quit()
+        ];
+        let bottom_line = KeyBindingsBlock::key_bindings_as_line(&key_bindings);
         let main_block = Block::bordered()
             .title(title.centered())
-            .title_bottom(key_bindings.items_as_line().centered())
+            .title_bottom(bottom_line.centered())
             .border_set(border::THICK);
         let main_frame = Paragraph::new("").centered().block(main_block);
         frame.render_widget(main_frame, frame.area());

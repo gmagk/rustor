@@ -28,18 +28,8 @@ pub struct SearchTorrent {
     pub description: String, // Used for PirateBay only
     pub source: TorrentSource,
     pub descr: String, // Used for PirateBay only
-    pub files: Vec<SearchTorrentFile> // Used for PirateBay only
-}
-
-impl SearchTorrent {
-
-    pub fn name_only(name: String) -> SearchTorrent {
-        let mut torrent = SearchTorrent::default();
-        torrent.name = name;
-
-        torrent
-
-    }
+    pub files: Vec<SearchTorrentFile>, // Used for PirateBay only
+    pub is_error: bool
 }
 
 // For now works only for PirateBay
@@ -47,13 +37,14 @@ impl SearchTorrent {
 #[serde(default)] // automatically use a default value when none is present in the data
 pub struct SearchTorrentFile {
     pub name: String,
-    pub size: i64
+    pub size: i64,
+    pub is_error: bool
 }
 
 impl SearchTorrentFile {
 
     pub fn new(name: String, size: i64) -> Self {
-        Self { name, size }
+        Self { name, size, is_error: false }
     }
 }
 
@@ -92,30 +83,10 @@ pub struct PirateBayInfoTorrent {
     pub descr: String
 }
 
-impl PirateBayInfoTorrent {
-
-    pub fn name_only(name: String) -> PirateBayInfoTorrent {
-        let mut info = PirateBayInfoTorrent::default();
-        info.name = name;
-
-        info
-    }
-}
-
 #[derive(Default, Serialize, Clone, Deserialize)]
 pub struct PirateBayTorrentFile {
     pub name: Vec<String>,
     pub size: Vec<i64>
-}
-
-impl PirateBayTorrentFile {
-
-    pub fn empty(name: String) -> PirateBayTorrentFile {
-        let mut file = PirateBayTorrentFile::default();
-        file.name = vec![name];
-
-        file
-    }
 }
 
 #[derive(Default, Deserialize)]

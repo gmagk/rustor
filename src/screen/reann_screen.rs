@@ -1,6 +1,7 @@
+use std::collections::HashMap;
 use crate::app::{KeyEventHandler, Renderable, RenderableArgs};
-use crate::config::{Config, ConfigKeyBinding};
-use crate::key_bindings::{KeyBindingItem, KeyBinding};
+use crate::config::{Config, ConfigKeyBindingKey};
+use crate::screen::key_bindings_block::{KeyBindingItem, KeyBindingsBlock};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::Frame;
 use ratatui::buffer::Buffer;
@@ -12,15 +13,15 @@ use crate::dto::transmission_dto::TransmissionTorrent;
 use crate::service::transmission_service::TransmissionService;
 use crate::screen::info_screen::InfoScreen;
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ReannScreen {
-    config: Config,
+    config_key_bindings: HashMap<ConfigKeyBindingKey, char>,
     selected_row_index: usize,
 }
 
 impl ReannScreen {
-    pub fn new(config: Config) -> Self {
-        Self { config, selected_row_index: 0 }
+    pub fn new(config_key_bindings: HashMap<ConfigKeyBindingKey, char>) -> Self {
+        Self { config_key_bindings, selected_row_index: 0 }
     }
 }
 
@@ -43,7 +44,7 @@ impl RenderableArgs for ReannScreenArgs {}
 impl Renderable<ReannScreenArgs> for ReannScreen {
     fn render(&mut self, frame: &mut Frame, args: ReannScreenArgs) {
         self.selected_row_index = args.get_selected_row_index();
-        frame.render_widget(*self, frame.area());
+        frame.render_widget(self.clone(), frame.area());
     }
 }
 
@@ -58,25 +59,25 @@ impl Widget for ReannScreen {
         let info = torrents.get(self.selected_row_index).unwrap();
 
         let title = Line::from(" Reannounce torrent ".bold());
-        let mut key_bindings = KeyBinding::new(self.config.clone());
-        key_bindings
-            .init(vec![
-                ConfigKeyBinding::KbHome,
-                ConfigKeyBinding::KbAdd,
-                ConfigKeyBinding::KbSearch,
-                ConfigKeyBinding::KbHelp,
-                ConfigKeyBinding::KbQuit,
-            ]).add(KeyBinding::action("Reannounce"))
-            .add(KeyBinding::cancel_action());
+        let mut key_bindings_block = KeyBindingsBlock::new(self.config_key_bindings.clone());
+        let key_bindings = vec![
+            key_bindings_block.cnf_kb_home(),
+            key_bindings_block.cnf_kb_add(),
+            key_bindings_block.cnf_kb_search(),
+            KeyBindingsBlock::kb_cancel(),
+            key_bindings_block.cnf_kb_help(),
+            key_bindings_block.cnf_kb_quit()
+        ];
+        let bottom_line = KeyBindingsBlock::key_bindings_as_line(&key_bindings);
+        let block = Block::bordered()
+            .title(title.centered())
+            .title_bottom(bottom_line.centered())
+            .border_set(border::THICK);
         let body = Text::from(vec![
             Line::from(vec!["".into()]),
             Line::from(vec![info.name.clone().into()]),
             Line::from(vec!["".into()]),
         ]);
-        let block = Block::bordered()
-            .title(title.centered())
-            .title_bottom(key_bindings.items_as_line().centered())
-            .border_set(border::THICK);
         Paragraph::new(body)
             .centered()
             .block(block)

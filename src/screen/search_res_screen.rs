@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::Frame;
@@ -9,14 +10,15 @@ use ratatui::text::Line;
 use ratatui::widgets::{Block, Cell, Padding, Paragraph, Row, Table, TableState};
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
-use crate::app::{KeyEventHandler, Renderable, RenderableArgs};
-use crate::config::{Config, ConfigKeyBinding};
+use crate::app::{KeyEventHandler, Renderable, RenderableArgs, Screen};
+use crate::config::{Config, ConfigKeyBindingKey};
+use crate::config::ConfigKeyBindingKey::{KbDownload, KbHome};
 use crate::dto::torrent_dto::{PirateBayInfoTorrent, PirateBayTorrentFile, SearchTorrent, TorrentSource};
 use crate::dto::transmission_dto::TransmissionTorrent;
 use crate::service::torrent_service::TorrentService;
 use crate::service::transmission_service::TransmissionService;
 use crate::screen::rm_screen::RmScreen;
-use crate::key_bindings::{KeyBindingItem, KeyBinding};
+use crate::screen::key_bindings_block::{KeyBindingItem, KeyBindingsBlock};
 use crate::mapper::Mapper;
 use crate::util::Util;
 
@@ -29,7 +31,7 @@ struct State {
 
 #[derive(Clone)]
 pub struct SearchResScreen {
-    config: Config,
+    config_key_bindings: HashMap<ConfigKeyBindingKey, char>,
     torrent_service_arc: Arc<TorrentService>,
     table_state: TableState,
     state: State
@@ -37,9 +39,9 @@ pub struct SearchResScreen {
 
 impl SearchResScreen {
 
-    pub fn new(config: Config, torrent_service_arc: Arc<TorrentService>) -> Self {
+    pub fn new(config_key_bindings: HashMap<ConfigKeyBindingKey, char>, torrent_service_arc: Arc<TorrentService>) -> Self {
         Self {
-            config,
+            config_key_bindings,
             torrent_service_arc,
             table_state: TableState::default().with_selected(0),
             state: State::default()
@@ -99,22 +101,17 @@ impl SearchResScreen {
         let active_torrent = self.state.torrents[cur_sel_index].clone();
         let active_torrent_id = active_torrent.id.parse().unwrap();
 
-        if active_torrent.source == TorrentSource::PirateBay {
-            let torrent_info = match self.torrent_service_arc.torrent_info_pirate_bay(active_torrent_id) {
-                Ok(torrent) => torrent,
-                Err(_) => PirateBayInfoTorrent::default()
-            };
-            let torrent_files = match self.torrent_service_arc.torrent_files_pirate_bay(active_torrent_id) {
-                Ok(torrent_files) => torrent_files,
-                Err(err) => { vec![PirateBayTorrentFile::empty(err.to_string())] }
-            };
-            self.state.selected_row_torrent = Mapper::pirate_bay_torrent_info_and_files_to_search_torrent(
-                &torrent_info,
-                &torrent_files
-            );
-        } else {
-            self.state.selected_row_torrent = SearchTorrent::name_only(active_torrent.name);
-        }
+        self.state.selected_row_torrent = match active_torrent.source {
+
+            // Get extra info from PirateBay
+            TorrentSource::PirateBay => {
+                Mapper::pirate_bay_torrent_info_and_files_result_to_search_torrent(
+                    &self.torrent_service_arc.torrent_info_pirate_bay(active_torrent_id),
+                    &self.torrent_service_arc.torrent_files_pirate_bay(active_torrent_id)
+                )
+            }
+            _ => active_torrent
+        };
 
         self.state.selected_row_torrent.clone()
     }
@@ -180,6 +177,10 @@ impl SearchResScreen {
             .max()
             .unwrap_or(0) as u16
     }
+
+    fn download(&mut self) {
+        TransmissionService::torrent_add(format!("magnet:?xt=urn:btih:{}", self.active_row_torrent().info_hash.as_str()));
+    }
 }
 
 pub struct SearchResArgs {
@@ -203,18 +204,20 @@ impl Renderable<SearchResArgs> for SearchResScreen {
         self.state.torrents = args.get_torrents().clone();
 
         let title = Line::from(" Search results ".bold());
-        let mut key_bindings = KeyBinding::new(self.config.clone());
-        key_bindings
-            .init(vec![
-                ConfigKeyBinding::KbHome,
-                ConfigKeyBinding::KbAdd,
-                ConfigKeyBinding::KbHelp, 
-                ConfigKeyBinding::KbQuit
-            ]).add(KeyBindingItem::new_ctrl_and_char("Info", 't'))
-            .add(KeyBindingItem::new_ctrl_and_char("Download", 'd'));
+        let mut key_bindings_block = KeyBindingsBlock::new(self.config_key_bindings.clone());
+        let key_bindings = vec![
+            key_bindings_block.cnf_kb_home(),
+            key_bindings_block.cnf_kb_add(),
+            key_bindings_block.cnf_kb_search(),
+            key_bindings_block.cnf_kb_info(),
+            key_bindings_block.cnf_kb_download(),
+            key_bindings_block.cnf_kb_help(),
+            key_bindings_block.cnf_kb_quit()
+        ];
+        let bottom_line = KeyBindingsBlock::key_bindings_as_line(&key_bindings);
         let block = Block::bordered()
             .title(title.centered())
-            .title_bottom(key_bindings.items_as_line().centered())
+            .title_bottom(bottom_line.centered())
             .padding(Padding::proportional(1))
             .border_set(border::THICK);
         let table = self.clone().table(&self.state.torrents).block(block);
@@ -248,6 +251,14 @@ impl KeyEventHandler for SearchResScreen {
                     self.previous_column();
                     false
                 }
+                KeyCode::Char(c) if ctrl => {
+                    if c == *self.config_key_bindings.get(&KbDownload).unwrap() {
+                        self.download();
+                        false
+                    } else {
+                        true
+                    }
+                },
                 _ => true,
             }
         } else {

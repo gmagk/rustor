@@ -1,6 +1,7 @@
+use std::collections::HashMap;
 use crate::app::{EmptyRenderableArgs, KeyEventHandler, Renderable, RenderableArgs};
-use crate::config::{Config, ConfigKeyBinding};
-use crate::key_bindings::KeyBinding;
+use crate::config::{Config, ConfigKeyBindingKey};
+use crate::screen::key_bindings_block::KeyBindingsBlock;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Constraint::{Fill, Length, Min, Percentage};
@@ -21,7 +22,7 @@ use crate::service::transmission_service::TransmissionService;
 use crate::util::Util;
 
 pub struct InfoScreen {
-    config: Config,
+    config_key_bindings: HashMap<ConfigKeyBindingKey, char>,
     selected_row_torrent: TransmissionTorrent,
     vertical_scroll_state: ScrollbarState,
     scroll_view_state: ScrollViewState,
@@ -30,9 +31,9 @@ pub struct InfoScreen {
 }
 
 impl InfoScreen {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config_key_bindings: HashMap<ConfigKeyBindingKey, char>) -> Self {
         Self {
-            config,
+            config_key_bindings,
             selected_row_torrent: Default::default(),
             vertical_scroll_state: ScrollbarState::default(),
             scroll_view_state: ScrollViewState::default(),
@@ -187,15 +188,16 @@ impl Renderable<InfoScreenArgs> for InfoScreen {
         .render(peers_area, scroll_view_buf);
 
         // bottom
-        let mut key_bindings = KeyBinding::new(self.config.clone());
-        key_bindings.init(vec![
-                ConfigKeyBinding::KbHome,
-                ConfigKeyBinding::KbAdd,
-                ConfigKeyBinding::KbSearch,
-                ConfigKeyBinding::KbHelp,
-                ConfigKeyBinding::KbQuit,
-            ]).add(KeyBinding::cancel_action());
-        Line::from(key_bindings.items_as_line())
+        let mut key_bindings_block = KeyBindingsBlock::new(self.config_key_bindings.clone());
+        let key_bindings = vec![
+            key_bindings_block.cnf_kb_home(),
+            key_bindings_block.cnf_kb_add(),
+            key_bindings_block.cnf_kb_search(),
+            key_bindings_block.cnf_kb_help(),
+            key_bindings_block.cnf_kb_quit()
+        ];
+        let bottom_line = KeyBindingsBlock::key_bindings_as_line(&key_bindings);
+        Line::from(bottom_line)
             .centered()
             .render(bottom_area, scroll_view_buf);
 

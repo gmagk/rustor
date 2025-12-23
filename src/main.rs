@@ -7,18 +7,18 @@ mod service;
 mod screen;
 mod util;
 mod client;
-mod key_bindings;
 mod mapper;
 
 use crate::app::App;
-use crate::config::Config;
+use crate::config::{Config, Params};
 use std::sync::{Arc, Mutex};
-use std::{env, io};
+use std::io;
+use clap::Parser;
 
 fn main() -> io::Result<()> {
-    let args: Vec<String> = env::args().collect();
     let terminal = ratatui::init();
-    let result = App::new(Config::new(args), Arc::new(Mutex::new(terminal))).run();
+    let config = Config::new(Params::parse());
+    let result = App::new(config, Arc::new(Mutex::new(terminal))).run();
     ratatui::restore();
     result
 }

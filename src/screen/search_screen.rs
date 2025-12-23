@@ -1,3 +1,5 @@
+use std::cmp::min;
+use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
@@ -10,12 +12,12 @@ use ratatui::widgets::{Block, Paragraph};
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
 use crate::app::{EmptyRenderableArgs, KeyEventHandler, Renderable, RenderableArgs};
-use crate::config::{Config, ConfigKeyBinding};
+use crate::config::{Config, ConfigKeyBindingKey};
 use crate::dto::torrent_dto::{SearchTorrent, TorrentSource};
 use crate::service::torrent_service::TorrentService;
 use crate::screen::search_res_screen::SearchResScreen;
-use crate::key_bindings::KeyBinding;
 use crate::mapper::Mapper;
+use crate::screen::key_bindings_block::KeyBindingsBlock;
 
 #[derive(Default)]
 pub struct State {
@@ -30,7 +32,7 @@ impl State {
 }
 
 pub struct SearchScreen {
-    config: Config,
+    config_key_bindings: HashMap<ConfigKeyBindingKey, char>,
     torrent_service: Arc<TorrentService>,
     input: Input,
     state: State,
@@ -38,9 +40,9 @@ pub struct SearchScreen {
 }
 
 impl SearchScreen {
-    pub fn new(config: Config, torrent_service: Arc<TorrentService>) -> Self {
-        Self { 
-            config,
+    pub fn new(config_key_bindings: HashMap<ConfigKeyBindingKey, char>, torrent_service: Arc<TorrentService>) -> Self {
+        Self {
+            config_key_bindings,
             torrent_service,
             input: Input::default(),
             state: State::default(),
@@ -57,17 +59,18 @@ impl Renderable<EmptyRenderableArgs> for SearchScreen {
     fn render(&mut self, frame: &mut Frame, args: EmptyRenderableArgs) {
         // frame
         let title = Line::from(" Search for torrents ".bold());
-        let mut key_bindings = KeyBinding::new(self.config.clone());
-        key_bindings
-            .init(vec![
-                ConfigKeyBinding::KbHome,
-                ConfigKeyBinding::KbAdd,
-                ConfigKeyBinding::KbHelp,
-                ConfigKeyBinding::KbQuit,
-            ]).add(KeyBinding::cancel_action());
+        let mut key_bindings_block = KeyBindingsBlock::new(self.config_key_bindings.clone());
+        let key_bindings = vec![
+            key_bindings_block.cnf_kb_home(),
+            key_bindings_block.cnf_kb_add(),
+            KeyBindingsBlock::kb_cancel(),
+            key_bindings_block.cnf_kb_help(),
+            key_bindings_block.cnf_kb_quit()
+        ];
+        let bottom_line = KeyBindingsBlock::key_bindings_as_line(&key_bindings);
         let main_block = Block::bordered()
             .title(title.centered())
-            .title_bottom(key_bindings.items_as_line().centered())
+            .title_bottom(bottom_line.centered())
             .border_set(border::THICK);
         let main_frame = Paragraph::new("").centered().block(main_block);
         frame.render_widget(main_frame, frame.area());
@@ -109,7 +112,7 @@ impl KeyEventHandler for SearchScreen {
                 KeyCode::Enter => {
                     let pirate_bay_result = match self.torrent_service.search_pirate_bay(self.input.value()) {
                         Ok(pirate_bay_result) => {
-                            let result = pirate_bay_result[..20]
+                            let result = pirate_bay_result[..min(pirate_bay_result.len(), 20)]
                                 .iter()
                                 .map(|torrent| Mapper::pirate_bay_list_torrent_to_search_torrent(torrent))
                                 .collect();

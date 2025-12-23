@@ -38,6 +38,7 @@ impl TorrentService {
     }
 
     /*
+        The extra info we get from this service is the `descr` field
         - request: https://apibay.org/t.php?id=<torrent-id>>
         - response:
             {

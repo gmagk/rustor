@@ -1,3 +1,4 @@
+use std::io::Error;
 use crate::dto::torrent_dto::{PirateBayInfoTorrent, PirateBayListTorrent, PirateBayTorrentFile, SearchTorrent, SearchTorrentFile, TorrentSource, TorrentsCsvTorrent};
 
 pub struct Mapper {}
@@ -18,27 +19,41 @@ impl Mapper {
         torrent
     }
 
-    pub fn pirate_bay_torrent_info_and_files_to_search_torrent(
-        info: &PirateBayInfoTorrent,
-        files: &Vec<PirateBayTorrentFile>
+    pub fn pirate_bay_torrent_info_and_files_result_to_search_torrent(
+        torrent_info: &Result<PirateBayInfoTorrent, Error>,
+        torrent_files: &Result<Vec<PirateBayTorrentFile>, Error>
     ) -> SearchTorrent {
         let mut torrent = SearchTorrent::default();
-        torrent.id = info.id.to_string();
-        torrent.name = info.name.clone();
-        torrent.seeders = info.seeders;
-        torrent.leechers = info.leechers;
-        torrent.size = info.size;
-        torrent.created_on = info.added;
-        torrent.info_hash = info.info_hash.clone();
-        torrent.description = info.descr.clone();
-        torrent.source = TorrentSource::PirateBay;
-        torrent.files = files
-            .iter()
-            .map(| file | SearchTorrentFile::new(
-                if file.name.len() > 0 { file.name[0].clone() } else { "".to_string() },
-                if file.size.len() > 0 { file.size[0].clone() } else { 0 }
-            ))
-            .collect();
+        match torrent_info {
+            Ok(info) => {
+                torrent.id = info.id.to_string();
+                torrent.name = info.name.clone();
+                torrent.seeders = info.seeders;
+                torrent.leechers = info.leechers;
+                torrent.size = info.size;
+                torrent.created_on = info.added;
+                torrent.info_hash = info.info_hash.clone();
+                torrent.description = info.descr.clone();
+                torrent.source = TorrentSource::PirateBay;
+            },
+            Err(_) => torrent.is_error = true
+        }
+        match torrent_files {
+            Ok(files) => {
+                files
+                    .iter()
+                    .enumerate()
+                    .for_each(| (i, file) |
+                        torrent
+                            .files
+                            .push(SearchTorrentFile::new(
+                                if file.name.len() > 0 { file.name[0].clone() } else { "".to_string() },
+                                if file.size.len() > 0 { file.size[0].clone() } else { 0 }
+                            ))
+                    );
+            },
+            Err(_) => torrent.files = vec![]
+        }
 
         torrent
     }

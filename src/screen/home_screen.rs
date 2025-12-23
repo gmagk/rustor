@@ -1,6 +1,7 @@
+use std::collections::HashMap;
 use crate::app::{EmptyRenderableArgs, KeyEventHandler, Renderable, RenderableArgs, Screen};
-use crate::config::{Config, ConfigKeyBinding};
-use crate::key_bindings::{KeyBindingItem, KeyBinding};
+use crate::config::{Config, ConfigKeyBindingKey};
+use crate::screen::key_bindings_block::{KeyBindingItem, KeyBindingsBlock};
 use crate::util::Util;
 use chrono::{DateTime, Local, Utc};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
@@ -25,16 +26,16 @@ struct State {
 
 #[derive(Clone)]
 pub struct HomeScreen {
-    config: Config,
+    config_key_bindings: HashMap<ConfigKeyBindingKey, char>,
     table_state: TableState,
     state: State
 }
 
 impl HomeScreen {
 
-    pub fn new(config: Config) -> Self {
+    pub fn new(config_key_bindings: HashMap<ConfigKeyBindingKey, char>) -> Self {
         Self {
-            config,
+            config_key_bindings,
             table_state: TableState::default().with_selected(0),
             state: State::default()
         }
@@ -191,20 +192,21 @@ impl Renderable<EmptyRenderableArgs> for HomeScreen {
         self.state.torrent_ids.extend(torrents.iter().map(|t| t.id));
 
         let title = Line::from(" All torrents ".bold());
-        let mut key_bindings = KeyBinding::new(self.config.clone());
-        key_bindings
-            .init(vec![
-                ConfigKeyBinding::KbAdd,
-                ConfigKeyBinding::KbSearch, 
-                ConfigKeyBinding::KbHelp, 
-                ConfigKeyBinding::KbQuit
-            ]).add(KeyBindingItem::new_ctrl_and_char("Remove", 'd'))
-            .add(KeyBindingItem::new_ctrl_and_char("Torrent", 't'))
-            .add(KeyBindingItem::new_ctrl_and_char("Open directory", 'o'))
-            .add(KeyBindingItem::new_ctrl_and_char("Reannounce", 'r'));
+        let mut key_bindings_block = KeyBindingsBlock::new(self.config_key_bindings.clone());
+        let key_bindings = vec![
+            key_bindings_block.cnf_kb_add(),
+            key_bindings_block.cnf_kb_search(),
+            key_bindings_block.cnf_kb_del(),
+            key_bindings_block.cnf_kb_info(),
+            key_bindings_block.cnf_kb_open(),
+            key_bindings_block.cnf_kb_reann(),
+            key_bindings_block.cnf_kb_help(),
+            key_bindings_block.cnf_kb_quit()
+        ];
+        let bottom_line = KeyBindingsBlock::key_bindings_as_line(&key_bindings);
         let block = Block::bordered()
             .title(title.centered())
-            .title_bottom(key_bindings.items_as_line().centered())
+            .title_bottom(bottom_line.centered())
             .padding(Padding::proportional(1))
             .border_set(border::THICK);
         let table = self.clone().table(&torrents).block(block);
