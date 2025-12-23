@@ -56,7 +56,7 @@ Uses [transmission-remote](https://transmissionbt.com) API and is written in Rus
 >    ```
 
 ## Installation
-Release (pre-production): https://github.com/gmagk/rustube/releases/tag/1.0.0-alpha
+Release (pre-production): https://github.com/gmagk/rustor/releases/tag/1.0.0-alpha.3
 
 ## Configuration
 

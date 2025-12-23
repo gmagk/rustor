@@ -1,6 +1,6 @@
 [package]
 name = "rustor"
-version = "1.0.0-alpha"
+version = "1.0.0-alpha.2"
 description = "A TUI for transmission-remote"
 authors = ["gmagk <tbuhtexis@yahoo.com>"]
 license = "MIT"

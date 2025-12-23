@@ -216,7 +216,12 @@ impl App {
                                 if c == *key_bindings.get(&KbDel).unwrap() { self.state.screen = Screen::Del }
                                 else if c == *key_bindings.get(&KbReAnn).unwrap() { self.state.screen = Screen::ReAnn }
                                 else if c == *key_bindings.get(&KbInfo).unwrap() { self.state.screen = Screen::Info }
-
+                                else {
+                                    home_screen_arc_clone_2
+                                        .lock()
+                                        .unwrap()
+                                        .handle_key_event(key_event, event);
+                                }
                             }
                             _ => {
                                 home_screen_arc_clone_2

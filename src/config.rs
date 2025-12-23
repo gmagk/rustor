@@ -86,8 +86,8 @@ impl Config {
         default_key_bindings.insert(ConfigKeyBindingKey::KbInfo, 'i');
         default_key_bindings.insert(ConfigKeyBindingKey::KbHelp, 'h');
         default_key_bindings.insert(ConfigKeyBindingKey::KbHome, 'b');
-        default_key_bindings.insert(ConfigKeyBindingKey::KbQuit, 'q');
         default_key_bindings.insert(ConfigKeyBindingKey::KbOpen, 'o');
+        default_key_bindings.insert(ConfigKeyBindingKey::KbQuit, 'q');
         default_key_bindings.insert(ConfigKeyBindingKey::KbReAnn, 'r');
         default_key_bindings.insert(ConfigKeyBindingKey::KbSearch, 's');
         let mut missing_key_bindings: HashMap<ConfigKeyBindingKey, char> = HashMap::new();

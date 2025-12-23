@@ -14,6 +14,7 @@ use ratatui::text::{Line, StyledGrapheme};
 use ratatui::widgets::{Block, Cell, Padding, Paragraph, Row, Table, TableState};
 use std::fmt::Debug;
 use std::time::{Duration, UNIX_EPOCH};
+use crate::config::ConfigKeyBindingKey::{KbDel, KbOpen};
 use crate::dto::transmission_dto::TransmissionTorrent;
 use crate::service::transmission_service::TransmissionService;
 
@@ -250,12 +251,14 @@ impl KeyEventHandler for HomeScreen {
                         false
                     }
                 }
-                KeyCode::Char('o') => {
-                    let cur_sel_index = self.table_state.selected().unwrap();
-                    let torrent = &TransmissionService::torrent_info(self.state.torrent_ids[cur_sel_index].to_string())
-                        .arguments
-                        .torrents[0];
-                    TransmissionService::torrent_location(&torrent);
+                KeyCode::Char(c) if ctrl => {
+                    if c == *self.config_key_bindings.get(&KbOpen).unwrap() {
+                        let cur_sel_index = self.table_state.selected().unwrap();
+                        let torrent = &TransmissionService::torrent_info(self.state.torrent_ids[cur_sel_index].to_string())
+                            .arguments
+                            .torrents[0];
+                        TransmissionService::torrent_location(&torrent);
+                    }
                     false
                 }
                 _ => true,
