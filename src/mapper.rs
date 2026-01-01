@@ -43,7 +43,7 @@ impl Mapper {
                 files
                     .iter()
                     .enumerate()
-                    .for_each(| (i, file) |
+                    .for_each(| (_, file) |
                         torrent
                             .files
                             .push(SearchTorrentFile::new(

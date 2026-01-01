@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Error;
 use crate::app::{EmptyRenderableArgs, KeyEventHandler, Renderable, RenderableArgs};
 use crate::config::{Config, ConfigKeyBindingKey};
 use crate::screen::key_bindings_block::KeyBindingsBlock;
@@ -24,10 +25,10 @@ use crate::util::Util;
 pub struct InfoScreen {
     config_key_bindings: HashMap<ConfigKeyBindingKey, char>,
     selected_row_torrent: TransmissionTorrent,
-    vertical_scroll_state: ScrollbarState,
+    // vertical_scroll_state: ScrollbarState,
     scroll_view_state: ScrollViewState,
-    vertical_scroll: usize,
-    text: [String; 3],
+    // vertical_scroll: usize,
+    // text: [String; 3],
 }
 
 impl InfoScreen {
@@ -35,50 +36,50 @@ impl InfoScreen {
         Self {
             config_key_bindings,
             selected_row_torrent: Default::default(),
-            vertical_scroll_state: ScrollbarState::default(),
+            // vertical_scroll_state: ScrollbarState::default(),
             scroll_view_state: ScrollViewState::default(),
-            vertical_scroll: 0,
-            text: [String::new(), String::new(), String::new()],
+            // vertical_scroll: 0,
+            // text: [String::new(), String::new(), String::new()],
         }
     }
-
-    fn line_numbers(&self, height: u16) -> impl Widget {
-        use std::fmt::Write;
-        let line_numbers = (1..=height).fold(String::new(), |mut output, n| {
-            let _ = writeln!(output, "{n:>4} ");
-            output
-        });
-        Text::from(line_numbers).dim()
-    }
-
-    fn bars(&self) -> BarGroup<'static> {
-        let char_data: [(&str, u64, Color); 3] = [
-            ("Red", 2, Color::Red),
-            ("Green", 7, Color::Green),
-            ("Blue", 11, Color::Blue),
-        ];
-        let data = char_data.map(|(label, value, color)| {
-            Bar::default().label(label.into()).value(value).style(color)
-        });
-        BarGroup::default().bars(&data)
-    }
-
-    fn vertical_bar_chart(&self) -> impl Widget {
-        let block = Block::bordered().title("Vertical Bar Chart");
-        BarChart::default()
-            .direction(Direction::Vertical)
-            .block(block)
-            .bar_width(5)
-            .bar_gap(1)
-            .data(self.bars())
-    }
-
-    fn text(&self, index: usize) -> impl Widget {
-        let block = Block::bordered().title(format!("Text {index}"));
-        Paragraph::new(self.text[index].clone())
-            .wrap(Wrap { trim: false })
-            .block(block)
-    }
+    //
+    // fn line_numbers(&self, height: u16) -> impl Widget {
+    //     use std::fmt::Write;
+    //     let line_numbers = (1..=height).fold(String::new(), |mut output, n| {
+    //         let _ = writeln!(output, "{n:>4} ");
+    //         output
+    //     });
+    //     Text::from(line_numbers).dim()
+    // }
+    //
+    // fn bars(&self) -> BarGroup<'static> {
+    //     let char_data: [(&str, u64, Color); 3] = [
+    //         ("Red", 2, Color::Red),
+    //         ("Green", 7, Color::Green),
+    //         ("Blue", 11, Color::Blue),
+    //     ];
+    //     let data = char_data.map(|(label, value, color)| {
+    //         Bar::default().label(label.into()).value(value).style(color)
+    //     });
+    //     BarGroup::default().bars(&data)
+    // }
+    //
+    // fn vertical_bar_chart(&self) -> impl Widget {
+    //     let block = Block::bordered().title("Vertical Bar Chart");
+    //     BarChart::default()
+    //         .direction(Direction::Vertical)
+    //         .block(block)
+    //         .bar_width(5)
+    //         .bar_gap(1)
+    //         .data(self.bars())
+    // }
+    //
+    // fn text(&self, index: usize) -> impl Widget {
+    //     let block = Block::bordered().title(format!("Text {index}"));
+    //     Paragraph::new(self.text[index].clone())
+    //         .wrap(Wrap { trim: false })
+    //         .block(block)
+    // }
 }
 
 pub struct InfoScreenArgs {
@@ -206,24 +207,24 @@ impl Renderable<InfoScreenArgs> for InfoScreen {
 }
 
 impl KeyEventHandler for InfoScreen {
-    fn handle_key_event(&mut self, key_event: KeyEvent, event: Event) -> bool {
+    fn handle_key_event(&mut self, key_event: KeyEvent, _: Event) -> Result<bool, Error> {
         if key_event.kind == KeyEventKind::Press {
             match key_event.code {
                 KeyCode::Char('j') | KeyCode::Down => {
                     self.scroll_view_state.scroll_down();
-                    true
+                    Ok(true)
                 }
                 KeyCode::Char('k') | KeyCode::Up => {
                     self.scroll_view_state.scroll_up();
-                    true
+                    Ok(true)
                 }
                 // leave
-                KeyCode::Esc => false,
+                KeyCode::Esc => Ok(false),
                 // do not leave (maybe it will change in the future)
-                _ => true,
+                _ => Ok(true),
             }
         } else {
-            false
+            Ok(true)
         }
     }
 }

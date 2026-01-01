@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Error;
 use crate::app::{KeyEventHandler, Renderable, RenderableArgs};
 use crate::config::{Config, ConfigKeyBindingKey};
 use crate::screen::key_bindings_block::{KeyBindingItem, KeyBindingsBlock};
@@ -9,7 +10,7 @@ use ratatui::layout::Rect;
 use ratatui::prelude::{Line, Stylize, Text, Widget};
 use ratatui::symbols::border;
 use ratatui::widgets::{Block, Paragraph};
-use crate::dto::transmission_dto::TransmissionTorrent;
+use crate::dto::transmission_dto::{TransmissionResponse, TransmissionTorrent};
 use crate::service::transmission_service::TransmissionService;
 use crate::screen::info_screen::InfoScreen;
 
@@ -53,9 +54,11 @@ impl Widget for ReannScreen {
     where
         Self: Sized,
     {
-        let torrents: Vec<TransmissionTorrent> = TransmissionService::torrent_list()
-            .arguments
-            .torrents;
+        let response: TransmissionResponse = TransmissionService::torrent_list().unwrap_or_else(|e| {
+            println!("{}", e.to_string());
+            TransmissionResponse::default()
+        });
+        let torrents: Vec<TransmissionTorrent> = response.arguments.torrents;
         let info = torrents.get(self.selected_row_index).unwrap();
 
         let title = Line::from(" Reannounce torrent ".bold());
@@ -86,24 +89,29 @@ impl Widget for ReannScreen {
 }
 
 impl KeyEventHandler for ReannScreen {
-    fn handle_key_event(&mut self, key_event: KeyEvent, event: Event) -> bool {
+    fn handle_key_event(&mut self, key_event: KeyEvent, _: Event) -> Result<bool, Error> {
         if key_event.kind == KeyEventKind::Press {
             match key_event.code {
                 // submit and leave
                 KeyCode::Enter => {
-                    let torrents: Vec<TransmissionTorrent> = TransmissionService::torrent_list()
-                        .arguments
-                        .torrents;
-                    TransmissionService::torrent_reannounce(torrents[self.selected_row_index].id.to_string());
-                    false
+                    match TransmissionService::torrent_list() {
+                        Ok(response) => {
+                            let torrents: Vec<TransmissionTorrent> = response.arguments.torrents;
+                            match TransmissionService::torrent_reannounce(torrents[self.selected_row_index].id.to_string()) {
+                                Ok(_) => { Ok(false) },
+                                Err(e) => { Err(e) }
+                            }
+                        }
+                        Err(_) => Ok(false)
+                    }
                 }
                 // leave
-                KeyCode::Esc => false,
+                KeyCode::Esc => Ok(false),
                 // do not leave (maybe it will change in the future)
-                _ => true,
+                _ => Ok(true)
             }
         } else {
-            false
+            Ok(true)
         }
     }
 }

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Error;
 use crate::app::{EmptyRenderableArgs, KeyEventHandler, Renderable, RenderableArgs};
 use crate::screen::key_bindings_block::{KeyBindingItem, KeyBindingsBlock};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
@@ -25,7 +26,7 @@ impl AddScreen {
 }
 
 impl Renderable<EmptyRenderableArgs> for AddScreen {
-    fn render(&mut self, frame: &mut Frame, args: EmptyRenderableArgs) {
+    fn render(&mut self, frame: &mut Frame, _: EmptyRenderableArgs) {
         // frame
         let title = Line::from(" Add torrent ".bold());
         let mut key_bindings_block = KeyBindingsBlock::new(self.config_key_bindings.clone());
@@ -76,28 +77,32 @@ impl KeyEventHandler for AddScreen {
     /*
        Returns false if we are done from this screen
     */
-    fn handle_key_event(&mut self, key_event: KeyEvent, event: Event) -> bool {
+    fn handle_key_event(&mut self, key_event: KeyEvent, event: Event) -> Result<bool, Error> {
         if key_event.kind == KeyEventKind::Press {
             match key_event.code {
                 // submit and leave
                 KeyCode::Enter => {
-                    TransmissionService::torrent_add(self.input.value().to_string());
+                    match TransmissionService::torrent_add(self.input.value().to_string()) {
+                        Ok(_) => {},
+                        Err(e) => { return Err(e.into()); }
+                    }
                     self.input.reset();
-                    false
+                    // leave
+                    Ok(false)
                 }
                 // leave
                 KeyCode::Esc => {
                     self.input.reset();
-                    false
+                    Ok(false)
                 }
                 // let input handle it
                 _ => {
                     self.input.handle_event(&event);
-                    true
+                    Ok(true)
                 }
             }
         } else {
-            false
+            Ok(true)
         }
     }
 }

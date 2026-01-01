@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Error;
 use crate::app::{EmptyRenderableArgs, KeyEventHandler, Renderable, RenderableArgs};
 use crate::config::{Config, ConfigKeyBindingKey};
 use crate::screen::key_bindings_block::{KeyBindingItem, KeyBindingsBlock};
@@ -22,7 +23,7 @@ impl HelpScreen {
 }
 
 impl Renderable<EmptyRenderableArgs> for HelpScreen {
-    fn render(&mut self, frame: &mut Frame, args: EmptyRenderableArgs) {
+    fn render(&mut self, frame: &mut Frame, _: EmptyRenderableArgs) {
         frame.render_widget(self.clone(), frame.area());
     }
 }
@@ -54,15 +55,18 @@ impl Widget for HelpScreen {
 }
 
 impl KeyEventHandler for HelpScreen {
-    fn handle_key_event(&mut self, key_event: KeyEvent, event: Event) -> bool {
+    fn handle_key_event(&mut self, key_event: KeyEvent, _: Event) -> Result<bool, Error> {
         if key_event.kind == KeyEventKind::Press {
             match key_event.code {
-                // KeyCode::Char('e') if key_event.modifiers.contains(KeyModifiers::CONTROL) => self.input.active = !self.input.active,
+                // leave
+                KeyCode::Esc => {
+                    Ok(false)
+                }
                 // do not leave (maybe it will change in the future)
-                _ => false,
+                _ => Ok(true),
             }
         } else {
-            false
+            Ok(true)
         }
     }
 }

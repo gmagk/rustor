@@ -1,6 +1,6 @@
 use std::cmp::min;
 use std::collections::HashMap;
-use std::error::Error;
+use std::io::Error;
 use std::sync::Arc;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::Frame;
@@ -36,7 +36,7 @@ pub struct SearchScreen {
     torrent_service: Arc<TorrentService>,
     input: Input,
     state: State,
-    error_msg: String
+    // error_msg: String
 }
 
 impl SearchScreen {
@@ -46,7 +46,7 @@ impl SearchScreen {
             torrent_service,
             input: Input::default(),
             state: State::default(),
-            error_msg: String::new()
+            // error_msg: String::new()
         }
     }
     
@@ -56,7 +56,7 @@ impl SearchScreen {
 }
 
 impl Renderable<EmptyRenderableArgs> for SearchScreen {
-    fn render(&mut self, frame: &mut Frame, args: EmptyRenderableArgs) {
+    fn render(&mut self, frame: &mut Frame, _: EmptyRenderableArgs) {
         // frame
         let title = Line::from(" Search for torrents ".bold());
         let mut key_bindings_block = KeyBindingsBlock::new(self.config_key_bindings.clone());
@@ -103,9 +103,7 @@ impl Renderable<EmptyRenderableArgs> for SearchScreen {
 
 impl KeyEventHandler for SearchScreen {
 
-    fn handle_key_event(&mut self, key_event: KeyEvent, event: Event) -> bool {
-        let ctrl = key_event.modifiers.contains(KeyModifiers::CONTROL);
-        let shft = key_event.modifiers.contains(KeyModifiers::SHIFT);
+    fn handle_key_event(&mut self, key_event: KeyEvent, event: Event) -> Result<bool, Error> {
         if key_event.kind == KeyEventKind::Press {
             match key_event.code {
                 // submit and leave
@@ -136,20 +134,20 @@ impl KeyEventHandler for SearchScreen {
                     self.state.results = match (&pirate_bay_result, &torrents_csv_result) {
                         (Err(_), Err(_)) => {
                             // TODO show error message (piratebay/torrentscsv failed)
-                            let piratebay_error = pirate_bay_result.err().unwrap().to_string();
-                            let torrentscsv_error = torrents_csv_result.err().unwrap().to_string();
+                            // let piratebay_error = pirate_bay_result.err().unwrap().to_string();
+                            // let torrentscsv_error = torrents_csv_result.err().unwrap().to_string();
 
                             vec![]
                         },
                         (Err(_), Ok(_)) => {
                             // TODO show error message (piratebay failed)
-                            let piratebay_error = pirate_bay_result.err().unwrap();
+                            // let piratebay_error = pirate_bay_result.err().unwrap();
 
                             torrents_csv_result.unwrap()
                         },
                         (Ok(_), Err(_)) => {
                             // TODO show error message (torrentscsv failed)
-                            let torrentscsv_error = torrents_csv_result.err().unwrap().to_string();
+                            // let torrentscsv_error = torrents_csv_result.err().unwrap().to_string();
 
                             pirate_bay_result.unwrap()
                         },
@@ -159,21 +157,22 @@ impl KeyEventHandler for SearchScreen {
                             result
                         }
                     };
-                    false
+                    // leave
+                    Ok(false)
                 }
                 // leave
                 KeyCode::Esc => {
                     self.input.reset();
-                    false
+                    Ok(false)
                 }
                 // let input handle it
                 _ => {
                     self.input.handle_event(&event);
-                    true
+                    Ok(true)
                 }
             }
         } else {
-            false
+            Ok(true)
         }
     }
 }

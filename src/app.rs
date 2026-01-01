@@ -13,22 +13,24 @@ use crate::screen::search_screen;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::text::ToText;
 use ratatui::{DefaultTerminal, Frame, Terminal};
-use std::ascii::AsciiExt;
 use std::cmp::PartialEq;
-use std::sync::mpsc::{TryRecvError, channel};
+use std::sync::mpsc::{TryRecvError, channel, Receiver};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::{io, thread};
+use std::io::Error;
 use crate::app::Screen::SearchInfo;
 use crate::client::http_client::HttpClient;
-use crate::config::Config;
+use crate::config::{Config, ConfigKeyBindingKey};
 use crate::config::ConfigKeyBindingKey::{KbAdd, KbDel, KbDownload, KbHelp, KbHome, KbInfo, KbQuit, KbReAnn, KbSearch};
+use crate::dto::transmission_dto::TransmissionTorrent;
 use crate::service::torrent_service::TorrentService;
 use crate::service::transmission_service::TransmissionService;
 use crate::screen::add_screen::AddScreen;
 use crate::screen::help_screen::HelpScreen;
 use crate::screen::home_screen::HomeScreen;
 use crate::screen::info_screen::{InfoScreen, InfoScreenArgs};
+use crate::screen::popup_screen::{PopupScreen, PopupScreenArgs};
 use crate::screen::reann_screen::{ReannScreen, ReannScreenArgs};
 use crate::screen::rm_screen::{RmScreen, RmScreenArgs};
 use crate::screen::search_info_screen::{SearchInfoScreen, SearchInfoScreenArgs};
@@ -41,7 +43,7 @@ pub trait KeyEventHandler {
            [false] handling is finished from the specific call (can continue with maybe another handling)
            [true] do not continue handling logic (?what ever that might mean)
     */
-    fn handle_key_event(&mut self, key_event: KeyEvent, event: Event) -> bool;
+    fn handle_key_event(&mut self, key_event: KeyEvent, event: Event) -> Result<bool, Error>;
 }
 
 pub trait Renderable<T>
@@ -56,24 +58,32 @@ pub struct EmptyRenderableArgs {}
 
 impl RenderableArgs for EmptyRenderableArgs {}
 
-#[derive(PartialEq)]
-pub enum Screen { Home, Help, Add, ReAnn, Del, Info, Search, SearchRes, SearchInfo, Popup }
-
-struct AppState {
-    screen: Screen,
-    popup_msg: String
+#[derive(Default, Clone, PartialEq)]
+pub enum Screen {
+    #[default]
+    Home,
+    Help,
+    Add,
+    ReAnn,
+    Del,
+    Info,
+    Search,
+    SearchRes,
+    SearchInfo
 }
 
-impl AppState {
-    pub fn new(screen: Screen) -> Self {
-        Self { screen, popup_msg: String::new() }
-    }
+#[derive(Default)]
+struct AppState {
+    screen: Screen,
+    popup_state: bool,
+    popup_show: bool,
+    popup_message: String
 }
 
 pub struct App {
     config: Config,
     terminal: Arc<Mutex<DefaultTerminal>>,
-    state: AppState,
+    state: Arc<Mutex<AppState>>,
 }
 
 impl App {
@@ -82,7 +92,7 @@ impl App {
         Self {
             config,
             terminal,
-            state: AppState::new(Screen::Home),
+            state: Arc::new(Mutex::new(AppState::default())),
         }
     }
 
@@ -92,9 +102,7 @@ impl App {
             return Ok(());
         }
 
-        let runtime = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()?;
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
         let http_client = HttpClient::new(runtime);
         let torrent_service_arc = Arc::new(TorrentService::new(http_client));
         let config_values = self.config.values();
@@ -112,34 +120,22 @@ impl App {
 
         loop {
             let (tx, rx) = channel();
+            let terminal_clone = self.terminal.clone();
+            let app_state_clone = self.state.clone();
+
             let home_screen_arc_clone = home_screen_arc.clone();
             let info_screen_arc_clone = info_screen_arc.clone();
-            let terminal_clone = self.terminal.clone();
+            let current_screen_clone = app_state_clone.lock().unwrap().screen.clone();
 
-            // home page (torrent list) needs refreshing, info page (torrent info) needs refreshing
-            match self.state.screen {
-                Screen::Home | Screen::Info => {
-                    let is_home = self.state.screen == Screen::Home;
+            // draw
+            match current_screen_clone {
+                Screen::Home => {
                     thread::spawn(move || {
                         loop {
                             let _ = terminal_clone.lock().unwrap().draw(|frame| {
-                                match is_home {
-
-                                    // Home screen
-                                    true => home_screen_arc_clone.lock().unwrap().render(frame, EmptyRenderableArgs::default()),
-
-                                    // Info screen
-                                    _ => {
-                                        let selected_torrent = home_screen_arc_clone.lock().unwrap().active_row_torrent();
-                                        info_screen_arc_clone
-                                            .lock()
-                                            .unwrap()
-                                            .render(frame, InfoScreenArgs::new(selected_torrent))
-                                    }
-                                }
+                                home_screen_arc_clone.lock().unwrap().render(frame, EmptyRenderableArgs::default());
                             });
                             thread::sleep(Duration::from_millis(3000));
-
                             // thread control
                             match rx.try_recv() {
                                 Ok(_) | Err(TryRecvError::Disconnected) => {
@@ -149,137 +145,161 @@ impl App {
                             }
                         }
                     });
-                } _ => {
-                    let selected_index = home_screen_arc_clone.lock().unwrap().active_row();
-                    let _ = terminal_clone
-                        .lock()
-                        .unwrap()
-                        .draw(|frame|
-                            match self.state.screen {
-                                Screen::SearchRes => {
-                                    search_res_screen.render(frame, SearchResArgs::new(search_screen.get_state().get_results()))
-                                } Screen::SearchInfo => {
-                                   search_info_screen.render(frame, SearchInfoScreenArgs::new(search_res_screen.active_row_torrent()))
-                                } Screen::Popup => {
-                                   // TODO
-                                } Screen::Del | Screen::ReAnn => {
-                                    match self.state.screen {
-                                        Screen::Del => del_screen.render(frame, RmScreenArgs::new(selected_index)),
-                                        Screen::ReAnn => reann_screen.render(frame, ReannScreenArgs::new(selected_index)),
-                                        _ => {}
-                                    }
-                                } _ => {
-                                    match self.state.screen {
-                                        Screen::Help => help_screen.render(frame, EmptyRenderableArgs::default()),
-                                        Screen::Add => add_screen.render(frame, EmptyRenderableArgs::default()),
-                                        Screen::Search => search_screen.render(frame, EmptyRenderableArgs::default()),
-                                        Screen::SearchRes => search_res_screen.render(frame, SearchResArgs::new(search_screen.get_state().get_results())),
-                                        _ => {}
+                } Screen::Info => {
+                    thread::spawn(move || {
+                        loop {
+                            let mut do_break = false;
+                            let _ = terminal_clone.lock().unwrap().draw(|frame| {
+                                match home_screen_arc_clone.lock().unwrap().active_row_torrent() {
+                                    Ok(torrent) => info_screen_arc_clone.lock().unwrap().render(frame, InfoScreenArgs::new(torrent)),
+                                    Err(e) => {
+                                        Self::show_popup(app_state_clone.clone(), e.to_string());
+                                        do_break = true;
                                     }
                                 }
+                            });
+                            if do_break {
+                                break;
                             }
-                        );
-                }
+                            thread::sleep(Duration::from_millis(3000));
+                            // thread control
+                            match rx.try_recv() {
+                                Ok(_) | Err(TryRecvError::Disconnected) => {
+                                    break;
+                                }
+                                Err(TryRecvError::Empty) => {}
+                            }
+                        }
+                    });
+                } Screen::SearchRes => self.draw(|f|search_res_screen.render(f, SearchResArgs::new(search_screen.get_state().get_results()))),
+                Screen::SearchInfo => self.draw(|f|search_info_screen.render(f, SearchInfoScreenArgs::new(search_res_screen.active_row_torrent()))),
+                Screen::Del => self.draw(|f|del_screen.render(f, RmScreenArgs::new(home_screen_arc_clone.lock().unwrap().active_row()))),
+                Screen::ReAnn => self.draw(|f|reann_screen.render(f, ReannScreenArgs::new(home_screen_arc_clone.lock().unwrap().active_row()))),
+                Screen::Help => self.draw(|f|help_screen.render(f, EmptyRenderableArgs::default())),
+                Screen::Add => self.draw(|f|add_screen.render(f, EmptyRenderableArgs::default())),
+                Screen::Search => self.draw(|f|search_screen.render(f, EmptyRenderableArgs::default()))
             }
 
+            // block and wait for user event
             let event = event::read()?;
+
+            // terminate any spawned thread
+            let _ = tx.send(());
+
             if let Event::Key(key_event) = event {
-                let ctrl = key_event.modifiers.contains(KeyModifiers::CONTROL);
 
-                // terminate spawned thread (in case of home page)
-                if self.state.screen != Screen::Home {
-                    let _ = tx.send(());
+                // handle only keyboard keys
+                if key_event.kind != KeyEventKind::Press {
+                    continue
                 }
 
-                let home_screen_arc_clone_2 = home_screen_arc.clone();
-                let info_screen_arc_clone_2 = info_screen_arc.clone();
+                // check quit
+                let quit_bind = *key_bindings.get(&KbQuit).unwrap();
+                if key_event.code == KeyCode::Char(quit_bind) { break }
 
-                // switch main screens or exit
-                if key_event.kind == KeyEventKind::Press {
-                    match key_event.code {
-                        KeyCode::Char(c) if ctrl => {
-                            if c == *key_bindings.get(&KbHome).unwrap() { self.state.screen = Screen::Home }
-                            else if c == *key_bindings.get(&KbAdd).unwrap() { self.state.screen = Screen::Add }
-                            else if c == *key_bindings.get(&KbSearch).unwrap() { self.state.screen = Screen::Search }
-                            else if c == *key_bindings.get(&KbHelp).unwrap() { self.state.screen = Screen::Help }
-                            else if c == *key_bindings.get(&KbQuit).unwrap() { break }
-                        },
-                        _ => {}
-                    }
+                // try change main screen
+                if  self.try_change_screen(key_event, KbHome, Screen::Home) ||
+                    self.try_change_screen(key_event, KbAdd, Screen::Add) ||
+                    self.try_change_screen(key_event, KbSearch, Screen::Search) ||
+                    self.try_change_screen(key_event, KbHelp, Screen::Help) {
+                    continue
                 }
 
-                match self.state.screen {
+                let current_screen = self.state.lock().unwrap().screen.clone(); // keep this dereferenced by assigning it to a variable (use this expression as it is in the match block)
+
+                // try change sub-screen
+                match current_screen {
                     Screen::Home => {
-                        match key_event.code {
-                            // switch to subscreen
-                            KeyCode::Char(c) if ctrl => {
-                                if c == *key_bindings.get(&KbDel).unwrap() { self.state.screen = Screen::Del }
-                                else if c == *key_bindings.get(&KbReAnn).unwrap() { self.state.screen = Screen::ReAnn }
-                                else if c == *key_bindings.get(&KbInfo).unwrap() { self.state.screen = Screen::Info }
-                                else {
-                                    home_screen_arc_clone_2
-                                        .lock()
-                                        .unwrap()
-                                        .handle_key_event(key_event, event);
-                                }
-                            }
-                            _ => {
-                                home_screen_arc_clone_2
-                                    .lock()
-                                    .unwrap()
-                                    .handle_key_event(key_event, event);
-                            }
+                        if  self.try_change_screen(key_event, KbDel, Screen::Del) ||
+                            self.try_change_screen(key_event, KbReAnn, Screen::ReAnn) ||
+                            self.try_change_screen(key_event, KbInfo, Screen::Info) {
+                            continue
                         }
                     } Screen::SearchRes => {
-                        match key_event.code {
-                            // switch to subscreen
-                            KeyCode::Char(c) if ctrl => {
-                                if c == *key_bindings.get(&KbInfo).unwrap() { self.state.screen = Screen::SearchInfo }
-                                else if c == *key_bindings.get(&KbDownload).unwrap() {
-                                    search_res_screen.handle_key_event(key_event, event);
-                                    self.state.screen = Screen::Home
-                                }
-                            }
-                            _ => {
-                                search_res_screen.handle_key_event(key_event, event);
-                            }
+                        if  self.try_change_screen(key_event, KbInfo, Screen::SearchInfo) {
+                            continue
                         }
-                    } Screen::Search => {
-                        if !search_screen.handle_key_event(key_event, event) {
-                            self.state.screen = Screen::SearchRes; // return to search results if we are done from this screen
-                        }
-                    } Screen::SearchInfo => {
-                        if !search_info_screen.handle_key_event(key_event, event) {
-                            self.state.screen = Screen::SearchRes; // return to search results if we are done from this screen
-                        }
-                    } Screen::Help => {
-                        help_screen.handle_key_event(key_event, event);
-                    } Screen::Add => {
-                        if !add_screen.handle_key_event(key_event, event) {
-                            self.state.screen = Screen::Home; // return to home if we are done from this screen
-                        }
-                    } Screen::ReAnn => {
-                        if !reann_screen.handle_key_event(key_event, event) {
-                            self.state.screen = Screen::Home; // return to home if we are done from this screen
-                        }
-                    } Screen::Del => {
-                        if !del_screen.handle_key_event(key_event, event) {
-                            self.state.screen = Screen::Home; // return to home if we are done from this screen
-                        }
-                    } Screen::Info => {
-                        if !info_screen_arc_clone_2
-                            .lock()
-                            .unwrap()
-                            .handle_key_event(key_event, event)
-                        {
-                            self.state.screen = Screen::Home; // return to home if we are done from this screen
-                        }
-                    } Screen::Popup => {
+                    } _ => {}
+                }
 
-                    }
+                // handle key-event by current screen
+                match current_screen {
+                    Screen::Home => self.handle_key_event_or_popup(home_screen_arc.lock().unwrap().handle_key_event(key_event, event)),
+                    Screen::SearchRes => self.handle_key_event_or_popup(search_res_screen.handle_key_event(key_event, event)),
+                    Screen::Search => self.handle_key_event_and_change_screen_or_popup(search_screen.handle_key_event(key_event, event), Screen::SearchRes),
+                    Screen::SearchInfo => self.handle_key_event_and_change_screen_or_popup(search_info_screen.handle_key_event(key_event, event), Screen::SearchRes),
+                    Screen::Help => self.handle_key_event_and_change_screen_or_popup(help_screen.handle_key_event(key_event, event), Screen::Home),
+                    Screen::Add => self.handle_key_event_and_change_screen_or_popup(add_screen.handle_key_event(key_event, event), Screen::Home),
+                    Screen::ReAnn => self.handle_key_event_and_change_screen_or_popup(reann_screen.handle_key_event(key_event, event), Screen::Home),
+                    Screen::Del => self.handle_key_event_and_change_screen_or_popup(del_screen.handle_key_event(key_event, event), Screen::Home),
+                    Screen::Info => self.handle_key_event_and_change_screen_or_popup(info_screen_arc.lock().unwrap().handle_key_event(key_event, event), Screen::Home)
                 }
             }
         }
         Ok(())
+    }
+
+    fn handle_key_event_or_popup(&self, result: Result<bool, Error>) {
+        match result {
+            Ok(_) => {}
+            Err(e) => { Self::show_popup(self.state.clone(), e.to_string()) }
+        }
+    }
+
+    fn handle_key_event_and_change_screen_or_popup(&self, result: Result<bool, Error>, next_screen: Screen) {
+        match result {
+            Ok(keep_handling) => {
+                if !keep_handling {
+                    self.state.lock().unwrap().screen = next_screen; // if we are done return to another screen
+                }
+            } Err(e) => { Self::show_popup(self.state.clone(), e.to_string()) }
+        }
+    }
+
+    fn draw<F>(&self, render_callback: F)
+    where F: FnOnce(&mut Frame) {
+        let _ = self.terminal.clone().lock().unwrap().draw(|frame | {
+            render_callback(frame);
+            Self::popup(self.config.clone(), self.state.clone(), frame);
+        });
+    }
+
+    fn try_change_screen(&self, key_event: KeyEvent, key: ConfigKeyBindingKey, screen: Screen) -> bool {
+        if !key_event.modifiers.contains(KeyModifiers::CONTROL) {
+            return false;
+        }
+        match key_event.code {
+            KeyCode::Char(c) => {
+                if c == *self.config.values().key_bindings().get(&key).unwrap() {
+                    self.state.lock().unwrap().screen = screen;
+                    return true
+                };
+                false
+            } _ => { false }
+        }
+    }
+
+    fn show_popup(state: Arc<Mutex<AppState>>, message: String) {
+        let mut st = state.lock().unwrap();
+        if st.popup_state {
+            return;
+        }
+        st.popup_message = message;
+        st.popup_show = true;
+        let state_clone = state.clone();
+        thread::spawn(move || {
+            thread::sleep(Duration::new(1, 0));
+            state_clone.lock().unwrap().popup_show = false;
+            state_clone.lock().unwrap().popup_state = false;
+        });
+
+    }
+
+    fn popup(config: Config, state: Arc<Mutex<AppState>>, frame: &mut Frame) {
+        let mut state = state.lock().unwrap();
+        if state.popup_show {
+            PopupScreen::new(config.values().key_bindings().clone()).render(frame, PopupScreenArgs::new(state.popup_message.clone()));
+            state.popup_state = true
+        }
     }
 }

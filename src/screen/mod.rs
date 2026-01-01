@@ -8,3 +8,4 @@ pub mod search_screen;
 pub mod search_res_screen;
 pub mod search_info_screen;
 mod key_bindings_block;
+pub mod popup_screen;

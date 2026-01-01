@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Error;
 use std::ops::Add;
 use std::sync::Arc;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
@@ -24,9 +25,9 @@ use crate::util::Util;
 pub struct SearchInfoScreen {
     config_key_bindings: HashMap<ConfigKeyBindingKey, char>,
     selected_row_torrent: SearchTorrent,
-    vertical_scroll_state: ScrollbarState,
+    // vertical_scroll_state: ScrollbarState,
     scroll_view_state: ScrollViewState,
-    vertical_scroll: usize
+    // vertical_scroll: usize
 }
 
 impl SearchInfoScreen {
@@ -35,9 +36,9 @@ impl SearchInfoScreen {
         Self {
             config_key_bindings,
             selected_row_torrent: SearchTorrent::default(),
-            vertical_scroll_state: ScrollbarState::default(),
+            // vertical_scroll_state: ScrollbarState::default(),
             scroll_view_state: ScrollViewState::default(),
-            vertical_scroll: 0
+            // vertical_scroll: 0
         }
     }
 }
@@ -111,7 +112,7 @@ impl Renderable<SearchInfoScreenArgs> for SearchInfoScreen {
                 .padding(Padding::uniform(1));
 
             let mut list_items: Vec<ListItem> = vec![];
-            torrent.files.iter().enumerate().for_each(|(i, file)| {
+            torrent.files.iter().enumerate().for_each(|(_, file)| {
 
                 // Many times the PirateBay API does not return Files info but instead returns an
                 // invalid json.
@@ -154,24 +155,24 @@ impl Renderable<SearchInfoScreenArgs> for SearchInfoScreen {
 }
 
 impl KeyEventHandler for SearchInfoScreen {
-    fn handle_key_event(&mut self, key_event: KeyEvent, event: Event) -> bool {
+    fn handle_key_event(&mut self, key_event: KeyEvent, _: Event) -> Result<bool, Error> {
         if key_event.kind == KeyEventKind::Press {
             match key_event.code {
                 KeyCode::Char('j') | KeyCode::Down => {
                     self.scroll_view_state.scroll_down();
-                    true
+                    Ok(true)
                 }
                 KeyCode::Char('k') | KeyCode::Up => {
                     self.scroll_view_state.scroll_up();
-                    true
+                    Ok(true)
                 }
                 // leave
-                KeyCode::Esc => false,
+                KeyCode::Esc => Ok(false),
                 // do not leave (maybe it will change in the future)
-                _ => true,
+                _ => Ok(true)
             }
         } else {
-            false
+            Ok(true)
         }
     }
 }

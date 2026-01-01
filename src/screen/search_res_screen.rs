@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Error;
 use std::sync::Arc;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::Frame;
@@ -105,10 +106,16 @@ impl SearchResScreen {
 
             // Get extra info from PirateBay
             TorrentSource::PirateBay => {
-                Mapper::pirate_bay_torrent_info_and_files_result_to_search_torrent(
+                let extra_torrent = Mapper::pirate_bay_torrent_info_and_files_result_to_search_torrent(
                     &self.torrent_service_arc.torrent_info_pirate_bay(active_torrent_id),
                     &self.torrent_service_arc.torrent_files_pirate_bay(active_torrent_id)
-                )
+                );
+
+                if extra_torrent.is_error {
+                    return active_torrent
+                }
+
+                extra_torrent
             }
             _ => active_torrent
         };
@@ -117,7 +124,7 @@ impl SearchResScreen {
     }
 
     fn table(self, torrents: &Vec<SearchTorrent>) -> Table<'static> {
-        let rows = torrents.iter().enumerate().map(|(i, torrent)| {
+        let rows = torrents.iter().enumerate().map(|(_, torrent)| {
             let item = [
                 &torrent.id,
                 &torrent.name,
@@ -178,8 +185,15 @@ impl SearchResScreen {
             .unwrap_or(0) as u16
     }
 
-    fn download(&mut self) {
-        TransmissionService::torrent_add(format!("magnet:?xt=urn:btih:{}", self.active_row_torrent().info_hash.as_str()));
+    fn download(&mut self) -> Result<bool, Error> {
+        let torrent = self.active_row_torrent();
+        let info_hash = torrent.info_hash;
+        let name = torrent.name;
+        let encoded_name: String = urlencoding::encode(name.as_str()).to_string();
+        match TransmissionService::torrent_add(format!("magnet:?xt=urn:btih:{}&dn={}", info_hash.as_str(), encoded_name)) {
+            Ok(_) => Ok(true),
+            Err(e) => Err(e)
+        }
     }
 }
 
@@ -228,41 +242,37 @@ impl Renderable<SearchResArgs> for SearchResScreen {
 
 impl KeyEventHandler for SearchResScreen {
 
-    fn handle_key_event(&mut self, key_event: KeyEvent, event: Event) -> bool {
+    fn handle_key_event(&mut self, key_event: KeyEvent, _: Event) -> Result<bool, Error> {
         let ctrl = key_event.modifiers.contains(KeyModifiers::CONTROL);
-        let shft = key_event.modifiers.contains(KeyModifiers::SHIFT);
         if key_event.kind == KeyEventKind::Press {
             match key_event.code {
                 KeyCode::Char('j') | KeyCode::Down => {
                     self.next_row();
-                    false
-                }
-                KeyCode::Char('k') | KeyCode::Up => {
+                    Ok(true)
+                } KeyCode::Char('k') | KeyCode::Up => {
                     self.previous_row();
-                    false
-                }
-                // TODO fix
+                    Ok(true)
+                } // TODO fix
                 KeyCode::Char('l') | KeyCode::Right => {
                     self.next_column();
-                    false
-                }
-                // TODO fix
+                    Ok(true)
+                } // TODO fix
                 KeyCode::Char('h') | KeyCode::Left => {
                     self.previous_column();
-                    false
-                }
-                KeyCode::Char(c) if ctrl => {
+                    Ok(true)
+                } KeyCode::Char(c) if ctrl => {
                     if c == *self.config_key_bindings.get(&KbDownload).unwrap() {
-                        self.download();
-                        false
+                        self.download()?;
+                        // leave
+                        Ok(false)
                     } else {
-                        true
+                        // do not leave (unknown key)
+                        Ok(true)
                     }
-                },
-                _ => true,
+                } _ => Ok(true)
             }
         } else {
-            false
+            Ok(true)
         }
     }
 }

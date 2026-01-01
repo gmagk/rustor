@@ -48,22 +48,19 @@ impl Config {
     pub fn new(params: Params) -> Self {
 
         // Read_config
-        let config_file = match params.config_file {
-            Some(file) => file,
-            None => {
-                let home_dir = env::home_dir()
-                    .expect("Error: Tried to search for `$HOME/.rustor/config.toml` but user's Home directory was not found!")
-                    .to_str()
-                    .unwrap()
-                    .to_string();
-                let file = format!("{}/.rustor/config.toml", home_dir);
-                match fs::exists(file.clone()) {
-                    Ok(true) => file,
-                    Ok(false) => "".to_string(),
-                    Err(_) => "".to_string(),
-                }
+        let config_file = params.config_file.unwrap_or_else(|| {
+            let home_dir = env::home_dir()
+                .expect("Error: Tried to search for `$HOME/.rustor/config.toml` but user's Home directory was not found!")
+                .to_str()
+                .unwrap()
+                .to_string();
+            let file = format!("{}/.rustor/config.toml", home_dir);
+            match fs::exists(file.clone()) {
+                Ok(true) => file,
+                Ok(false) => "".to_string(),
+                Err(_) => "".to_string(),
             }
-        };
+        });
         let mut values: ConfigValues = if !config_file.is_empty() {
                 match fs::read_to_string(config_file.clone()) {
                     Ok(content) => {
@@ -86,13 +83,13 @@ impl Config {
         default_key_bindings.insert(ConfigKeyBindingKey::KbInfo, 'i');
         default_key_bindings.insert(ConfigKeyBindingKey::KbHelp, 'h');
         default_key_bindings.insert(ConfigKeyBindingKey::KbHome, 'b');
-        default_key_bindings.insert(ConfigKeyBindingKey::KbOpen, 'o');
+        default_key_bindings.insert(ConfigKeyBindingKey::KbOpen, 'm');
         default_key_bindings.insert(ConfigKeyBindingKey::KbQuit, 'q');
         default_key_bindings.insert(ConfigKeyBindingKey::KbReAnn, 'r');
-        default_key_bindings.insert(ConfigKeyBindingKey::KbSearch, 's');
+        default_key_bindings.insert(ConfigKeyBindingKey::KbSearch, 'g');
         let mut missing_key_bindings: HashMap<ConfigKeyBindingKey, char> = HashMap::new();
         default_key_bindings.iter().for_each(|(k, v)| {
-            match values.key_bindings.iter().find(| (key, value) | **key == *k) {
+            match values.key_bindings.iter().find(| (key, _) | **key == *k) {
                  Some(_) => {},
                  None => { let _ = missing_key_bindings.insert(k.clone(), v.clone()); }
              }

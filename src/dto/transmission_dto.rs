@@ -289,15 +289,15 @@ pub struct TransmissionTorrentFile {
     pub length: i64,
     pub name: String,
 }
-
-#[derive(Default, Deserialize)]
-#[serde(default)] // automatically use a default value when none is present in the data
-pub struct TransmissionTorrentFiles {
-    pub files: Vec<TransmissionTorrentFile>,
-    pub name: String,
-    pub priorities: Vec<i64>,
-    pub wanted: Vec<i64>,
-}
+//
+// #[derive(Default, Deserialize)]
+// #[serde(default)] // automatically use a default value when none is present in the data
+// pub struct TransmissionTorrentFiles {
+//     pub files: Vec<TransmissionTorrentFile>,
+//     pub name: String,
+//     pub priorities: Vec<i64>,
+//     pub wanted: Vec<i64>,
+// }
 
 #[derive(Default, Deserialize)]
 #[serde(default)] // automatically use a default value when none is present in the data

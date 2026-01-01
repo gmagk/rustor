@@ -13,9 +13,10 @@ use ratatui::symbols::border;
 use ratatui::text::{Line, StyledGrapheme};
 use ratatui::widgets::{Block, Cell, Padding, Paragraph, Row, Table, TableState};
 use std::fmt::Debug;
+use std::io::{Error, ErrorKind};
 use std::time::{Duration, UNIX_EPOCH};
 use crate::config::ConfigKeyBindingKey::{KbDel, KbOpen};
-use crate::dto::transmission_dto::TransmissionTorrent;
+use crate::dto::transmission_dto::{TransmissionResponse, TransmissionResponseArguments, TransmissionTorrent};
 use crate::service::transmission_service::TransmissionService;
 
 #[derive(Default, Clone)]
@@ -87,26 +88,33 @@ impl HomeScreen {
         self.table_state.selected().unwrap_or(0)
     }
 
-    pub fn active_row_torrent(&mut self) -> TransmissionTorrent {
+    pub fn active_row_torrent(&mut self) -> Result<TransmissionTorrent, Error> {
         let cur_sel_index = self.table_state.selected().unwrap_or(0);
         if  self.state.selected_row_torrent.id != 0 &&
             self.state.row_index_last_used_for_fetching_torrent == cur_sel_index {
 
-            return self.state.selected_row_torrent.clone()
+            return Ok(self.state.selected_row_torrent.clone())
         }
 
         self.state.row_index_last_used_for_fetching_torrent = cur_sel_index.clone();
         let torrent_id = self.state.torrent_ids[cur_sel_index].to_string();
-        let torrent = TransmissionService::torrent_info(torrent_id)
-            .arguments
-            .torrents[0].clone();
-        self.state.selected_row_torrent = torrent.clone();
+        match TransmissionService::torrent_info(torrent_id) {
+            Ok(torrent_info) => {
+                let torrent = torrent_info.arguments.torrents[0].clone();
 
-        torrent.clone()
+                if torrent.error > 0 {
+                    return Err(Error::new(ErrorKind::Other, torrent.error_string))
+                }
+
+                self.state.selected_row_torrent = torrent.clone();
+                Ok(torrent.clone())
+            },
+            Err(e) => { Err(e) }
+        }
     }
 
     fn table(self, torrents: &Vec<TransmissionTorrent>) -> Table<'static> {
-        let rows = torrents.iter().enumerate().map(|(i, torrent)| {
+        let rows = torrents.iter().enumerate().map(|(_, torrent)| {
             let item = [
                 &torrent.id.to_string(),
                 &torrent.name,
@@ -176,20 +184,21 @@ impl HomeScreen {
     }
 
     // Find for combined peers.client_name column which row has the largest (this is done only for string values which might be too long)
-    fn peer_client_name_len(&self, items: &Vec<TransmissionTorrent>) -> u16 {
-        items
-            .iter()
-            .map(|torrent| torrent.peers_client_name().chars().count())
-            .max()
-            .unwrap_or(0) as u16
-    }
+    // fn peer_client_name_len(&self, items: &Vec<TransmissionTorrent>) -> u16 {
+    //     items
+    //         .iter()
+    //         .map(|torrent| torrent.peers_client_name().chars().count())
+    //         .max()
+    //         .unwrap_or(0) as u16
+    // }
 }
 
 impl Renderable<EmptyRenderableArgs> for HomeScreen {
-    fn render(&mut self, frame: &mut Frame, args: EmptyRenderableArgs) {
-        let torrents: Vec<TransmissionTorrent> = TransmissionService::torrent_list()
-            .arguments
-            .torrents;
+    fn render(&mut self, frame: &mut Frame, _: EmptyRenderableArgs) {
+        let response: TransmissionResponse = TransmissionService::torrent_list().unwrap_or_else(|_| {
+            TransmissionResponse::default()
+        });
+        let torrents: Vec<TransmissionTorrent> = response.arguments.torrents;
         self.state.torrent_ids.extend(torrents.iter().map(|t| t.id));
 
         let title = Line::from(" All torrents ".bold());
@@ -217,54 +226,52 @@ impl Renderable<EmptyRenderableArgs> for HomeScreen {
 }
 
 impl KeyEventHandler for HomeScreen {
-    fn handle_key_event(&mut self, key_event: KeyEvent, event: Event) -> bool {
+    fn handle_key_event(&mut self, key_event: KeyEvent, _: Event) -> Result<bool, Error> {
         let ctrl = key_event.modifiers.contains(KeyModifiers::CONTROL);
-        let shft = key_event.modifiers.contains(KeyModifiers::SHIFT);
         if key_event.kind == KeyEventKind::Press {
             match key_event.code {
                 KeyCode::Char('j') | KeyCode::Down => {
                     self.next_row();
-                    false
-                }
-                KeyCode::Char('k') | KeyCode::Up => {
+                    Ok(true)
+                } KeyCode::Char('k') | KeyCode::Up => {
                     self.previous_row();
-                    false
-                }
-                // TODO fix
+                    Ok(true)
+                } // TODO fix
                 KeyCode::Char('l') | KeyCode::Right => {
                     self.next_column();
-                    false
-                }
-                // TODO fix
+                    Ok(true)
+                } // TODO fix
                 KeyCode::Char('h') | KeyCode::Left => {
                     self.previous_column();
-                    false
-                }
-                KeyCode::Char('s') => {
-                    if shft {
-                        let cur_sel_indx = self.active_row();
-                        TransmissionService::torrent_stop(self.state.torrent_ids[cur_sel_indx].to_string());
-                        false
-                    } else {
-                        let cur_sel_indx = self.table_state.selected().unwrap();
-                        TransmissionService::torrent_start(self.state.torrent_ids[cur_sel_indx].to_string());
-                        false
-                    }
-                }
-                KeyCode::Char(c) if ctrl => {
-                    if c == *self.config_key_bindings.get(&KbOpen).unwrap() {
+                    Ok(true)
+                } KeyCode::Char(c) => {
+                    if c == *self.config_key_bindings.get(&KbOpen).unwrap() && ctrl {
                         let cur_sel_index = self.table_state.selected().unwrap();
-                        let torrent = &TransmissionService::torrent_info(self.state.torrent_ids[cur_sel_index].to_string())
-                            .arguments
-                            .torrents[0];
-                        TransmissionService::torrent_location(&torrent);
+                        match TransmissionService::torrent_info(self.state.torrent_ids[cur_sel_index].to_string()) {
+                            Ok(torrent_info) => {
+                                TransmissionService::torrent_location(&torrent_info.arguments.torrents[0]);
+                                // leave
+                                Ok(false)
+                            },
+                            Err(e) => { Err(e)? }
+                        }
+                    // } else if c == 's' {
+                    //     if shft {
+                    //         let cur_sel_indx = self.active_row();
+                    //         TransmissionService::torrent_stop(self.state.torrent_ids[cur_sel_indx].to_string())?;
+                    //     } else {
+                    //         let cur_sel_indx = self.table_state.selected().unwrap();
+                    //         TransmissionService::torrent_start(self.state.torrent_ids[cur_sel_indx].to_string())?;
+                    //     }
+                    //     Ok(false)
+                    } else {
+                        // do not leave (unknown key)
+                        Ok(true)
                     }
-                    false
-                }
-                _ => true,
+                } _ => Ok(true)
             }
         } else {
-            false
+            Ok(true)
         }
     }
 }
