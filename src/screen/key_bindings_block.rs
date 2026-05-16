@@ -106,6 +106,14 @@ impl KeyBindingsBlock {
         KeyBindingItem::new_ctrl_and_char("Search", *self.config_key_bindings.get(&ConfigKeyBindingKey::KbSearch).unwrap())
     }
 
+    pub fn cnf_kb_start(&mut self) -> KeyBindingItem {
+        KeyBindingItem::new_ctrl_and_char("Start", *self.config_key_bindings.get(&ConfigKeyBindingKey::KbStart).unwrap())
+    }
+
+    pub fn cnf_kb_stop(&mut self) -> KeyBindingItem {
+        KeyBindingItem::new_ctrl_and_char("Stop", *self.config_key_bindings.get(&ConfigKeyBindingKey::KbStop).unwrap())
+    }
+
     pub fn kb_cancel() -> KeyBindingItem {
         KeyBindingItem::new_key_code("Cancel", KeyCode::Esc)
     }

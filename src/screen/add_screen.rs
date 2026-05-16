@@ -11,6 +11,7 @@ use ratatui::widgets::{Block, Paragraph};
 use tui_input::Input;
 use tui_input::backend::crossterm::EventHandler;
 use crate::config::{Config, ConfigKeyBindingKey};
+use crate::config::ConfigKeyBindingKey::KbQuit;
 use crate::service::torrent_service::TorrentService;
 use crate::service::transmission_service::TransmissionService;
 
@@ -78,6 +79,7 @@ impl KeyEventHandler for AddScreen {
        Returns false if we are done from this screen
     */
     fn handle_key_event(&mut self, key_event: KeyEvent, event: Event) -> Result<bool, Error> {
+
         if key_event.kind == KeyEventKind::Press {
             match key_event.code {
                 // submit and leave

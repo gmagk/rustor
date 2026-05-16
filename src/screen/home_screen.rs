@@ -1,23 +1,20 @@
-use std::collections::HashMap;
-use crate::app::{EmptyRenderableArgs, KeyEventHandler, Renderable, RenderableArgs, Screen};
-use crate::config::{Config, ConfigKeyBindingKey};
-use crate::screen::key_bindings_block::{KeyBindingItem, KeyBindingsBlock};
+use crate::app::{EmptyRenderableArgs, KeyEventHandler, Renderable};
+use crate::config::ConfigKeyBindingKey::{KbOpen, KbStart, KbStop};
+use crate::config::ConfigKeyBindingKey;
+use crate::dto::transmission_dto::{TransmissionResponse, TransmissionTorrent};
+use crate::screen::key_bindings_block::KeyBindingsBlock;
+use crate::service::transmission_service::TransmissionService;
 use crate::util::Util;
-use chrono::{DateTime, Local, Utc};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use ratatui::Frame;
 use ratatui::layout::Constraint;
-use ratatui::prelude::{Modifier, Style, Stylize, Text};
+use ratatui::prelude::{Modifier, Style, Stylize};
 use ratatui::style::Color;
 use ratatui::symbols::border;
-use ratatui::text::{Line, StyledGrapheme};
-use ratatui::widgets::{Block, Cell, Padding, Paragraph, Row, Table, TableState};
-use std::fmt::Debug;
+use ratatui::text::Line;
+use ratatui::widgets::{Block, Cell, Padding, Row, Table, TableState};
+use ratatui::Frame;
+use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
-use std::time::{Duration, UNIX_EPOCH};
-use crate::config::ConfigKeyBindingKey::{KbDel, KbOpen};
-use crate::dto::transmission_dto::{TransmissionResponse, TransmissionResponseArguments, TransmissionTorrent};
-use crate::service::transmission_service::TransmissionService;
 
 #[derive(Default, Clone)]
 struct State {
@@ -119,6 +116,7 @@ impl HomeScreen {
                 &torrent.id.to_string(),
                 &torrent.name,
                 &torrent.eta(),
+                &torrent.status(),
                 &torrent.percentage_done(),
                 &torrent.download_rate(),
                 &torrent.upload_rate(),
@@ -130,25 +128,23 @@ impl HomeScreen {
             // TODO show tor error
             // TODO show done status
             item.into_iter()
-                .map(|content| Cell::from(Text::from(format!("\n{content}\n"))))
+                .map(|content| Cell::from(format!("{content}")))
                 .collect::<Row>()
-                .height(3)
         });
         let header = [
             "Id",
             "Name",
             "ETA",
+            "Status",
             "Done",
             "Download",
             "Upload",
             "Size",
             "Downloaded",
             "Added On",
-        ]
-        .into_iter()
+        ].into_iter()
         .map(Cell::from)
         .collect::<Row>()
-        .height(1)
         .bg(Color::Indexed(236)) // https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
         .fg(Color::Indexed(255));
         let selected_row_style = Style::default()
@@ -161,6 +157,7 @@ impl HomeScreen {
                 // + 1 is for padding.
                 Constraint::Length(4),
                 Constraint::Length(self.name_len(&torrents) + 1),
+                Constraint::Length(16),
                 Constraint::Length(16),
                 Constraint::Length(16),
                 Constraint::Length(16),
@@ -204,6 +201,8 @@ impl Renderable<EmptyRenderableArgs> for HomeScreen {
         let title = Line::from(" All torrents ".bold());
         let mut key_bindings_block = KeyBindingsBlock::new(self.config_key_bindings.clone());
         let key_bindings = vec![
+            key_bindings_block.cnf_kb_start(),
+            key_bindings_block.cnf_kb_stop(),
             key_bindings_block.cnf_kb_add(),
             key_bindings_block.cnf_kb_search(),
             key_bindings_block.cnf_kb_del(),
@@ -255,15 +254,14 @@ impl KeyEventHandler for HomeScreen {
                             },
                             Err(e) => { Err(e)? }
                         }
-                    // } else if c == 's' {
-                    //     if shft {
-                    //         let cur_sel_indx = self.active_row();
-                    //         TransmissionService::torrent_stop(self.state.torrent_ids[cur_sel_indx].to_string())?;
-                    //     } else {
-                    //         let cur_sel_indx = self.table_state.selected().unwrap();
-                    //         TransmissionService::torrent_start(self.state.torrent_ids[cur_sel_indx].to_string())?;
-                    //     }
-                    //     Ok(false)
+                    } else if c == *self.config_key_bindings.get(&KbStart).unwrap() {
+                        let cur_sel_indx = self.table_state.selected().unwrap();
+                        TransmissionService::torrent_start(self.state.torrent_ids[cur_sel_indx].to_string())?;
+                        Ok(false)
+                    }  else if c == *self.config_key_bindings.get(&KbStop).unwrap() {
+                        let cur_sel_indx = self.active_row();
+                        TransmissionService::torrent_stop(self.state.torrent_ids[cur_sel_indx].to_string())?;
+                        Ok(false)
                     } else {
                         // do not leave (unknown key)
                         Ok(true)

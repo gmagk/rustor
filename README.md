@@ -3,17 +3,13 @@
 ![screeshot](./rustor-search-0.png)
 2. Search results
 ![screeshot](./rustor-search-1.png)
-3. Pending download
-![screeshot](./rustor-search-2.png)
-4. Download started
+3. Download started
 ![screeshot](./rustor-search-3.png)
 ---
 ### New torrent from local-file or magnet-link
 1. Add torrent
 ![screeshot](./rustor-add-0.png)
-2. Pending download
-![screeshot](./rustor-add-1.png)
-3. Download started
+2. Download started
 ![screeshot](./rustor-add-2.png)
 ---
 
@@ -81,17 +77,19 @@ Release (pre-production): https://github.com/gmagk/rustor/releases/tag/1.0.0-alp
 <br/>
 
 #### Default key-bindings
-| key        | value | description                                           |
-|------------|-------|-------------------------------------------------------|
-| KbAdd      | "a"   | add new torrent                                       |
-| KbDel      | "d"   | remove selected torrent in __Home__                   |
+| key        | value | description                                            |
+|------------|-------|--------------------------------------------------------|
+| KbAdd      | "a"   | add new torrent                                        |
+| KbDel      | "d"   | remove selected torrent in __Home__                    |
 | KbDownload | "d"   | download selected torrent screen in __Search Results__ |
-| KbInfo     | "i"   | show info for torrent in __Home__ or __Search Results__ |
-| KbHelp     | "h"   | go to __Help__                                        |
-| KbHome     | "b"   | go to __Home__                                        |
-| KbQuit     | "q"   | quit                                                  |
-| KbReAnn    | "r"   | reannounce torrent in __Home__                        |
-| KbSearch   | "s"   | search for torrents                                   |
+| KbInfo     | "t"   | show torrent info in __Home__ or __Search Results__    |
+| KbHelp     | "h"   | go to __Help__                                         |
+| KbHome     | "b"   | go to __Home__                                         |
+| KbQuit     | "q"   | quit                                                   |
+| KbReAnn    | "r"   | reannounce torrent in __Home__                         |
+| KbSearch   | "f"   | search for torrents                                    |
+| KbStart    | "s"   | start torrent in __Home__                              |
+| KbStop     | "x"   | stop torrent in __Home__                               |
 
 <br/>
 

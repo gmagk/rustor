@@ -69,7 +69,8 @@ pub enum Screen {
     Info,
     Search,
     SearchRes,
-    SearchInfo
+    SearchInfo,
+    Error
 }
 
 #[derive(Default)]
@@ -98,8 +99,8 @@ impl App {
 
     pub fn run(&mut self) -> io::Result<()> {
         if !TransmissionService::transmission_daemon_is_active() {
-            println!("transmission-daemon does not look active");
-            return Ok(());
+            self.state.clone().lock().unwrap().screen = Screen::Error;
+            Self::show_popup(self.state.clone(), "transmission-daemon does not look active".to_string());
         }
 
         let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
@@ -177,7 +178,8 @@ impl App {
                 Screen::ReAnn => self.draw(|f|reann_screen.render(f, ReannScreenArgs::new(home_screen_arc_clone.lock().unwrap().active_row()))),
                 Screen::Help => self.draw(|f|help_screen.render(f, EmptyRenderableArgs::default())),
                 Screen::Add => self.draw(|f|add_screen.render(f, EmptyRenderableArgs::default())),
-                Screen::Search => self.draw(|f|search_screen.render(f, EmptyRenderableArgs::default()))
+                Screen::Search => self.draw(|f|search_screen.render(f, EmptyRenderableArgs::default())),
+                Screen::Error => { let _ = self.terminal.clone().lock().unwrap().draw(|frame | { Self::popup(self.state.clone(), frame); }); }
             }
 
             // block and wait for user event
@@ -186,7 +188,7 @@ impl App {
             // terminate any spawned thread
             let _ = tx.send(());
 
-            if let Event::Key(key_event) = event {
+            if let Event::Key(key_event, ..) = event {
 
                 // handle only keyboard keys
                 if key_event.kind != KeyEventKind::Press {
@@ -225,14 +227,15 @@ impl App {
                 // handle key-event by current screen
                 match current_screen {
                     Screen::Home => self.handle_key_event_or_popup(home_screen_arc.lock().unwrap().handle_key_event(key_event, event)),
-                    Screen::SearchRes => self.handle_key_event_or_popup(search_res_screen.handle_key_event(key_event, event)),
+                    Screen::SearchRes => self.handle_key_event_and_change_screen_or_popup(search_res_screen.handle_key_event(key_event, event), Screen::Home),
                     Screen::Search => self.handle_key_event_and_change_screen_or_popup(search_screen.handle_key_event(key_event, event), Screen::SearchRes),
                     Screen::SearchInfo => self.handle_key_event_and_change_screen_or_popup(search_info_screen.handle_key_event(key_event, event), Screen::SearchRes),
                     Screen::Help => self.handle_key_event_and_change_screen_or_popup(help_screen.handle_key_event(key_event, event), Screen::Home),
                     Screen::Add => self.handle_key_event_and_change_screen_or_popup(add_screen.handle_key_event(key_event, event), Screen::Home),
                     Screen::ReAnn => self.handle_key_event_and_change_screen_or_popup(reann_screen.handle_key_event(key_event, event), Screen::Home),
                     Screen::Del => self.handle_key_event_and_change_screen_or_popup(del_screen.handle_key_event(key_event, event), Screen::Home),
-                    Screen::Info => self.handle_key_event_and_change_screen_or_popup(info_screen_arc.lock().unwrap().handle_key_event(key_event, event), Screen::Home)
+                    Screen::Info => self.handle_key_event_and_change_screen_or_popup(info_screen_arc.lock().unwrap().handle_key_event(key_event, event), Screen::Home),
+                    Screen::Error => { break; }
                 }
             }
         }
@@ -260,7 +263,7 @@ impl App {
     where F: FnOnce(&mut Frame) {
         let _ = self.terminal.clone().lock().unwrap().draw(|frame | {
             render_callback(frame);
-            Self::popup(self.config.clone(), self.state.clone(), frame);
+            Self::popup(self.state.clone(), frame);
         });
     }
 
@@ -295,10 +298,10 @@ impl App {
 
     }
 
-    fn popup(config: Config, state: Arc<Mutex<AppState>>, frame: &mut Frame) {
+    fn popup(state: Arc<Mutex<AppState>>, frame: &mut Frame) {
         let mut state = state.lock().unwrap();
         if state.popup_show {
-            PopupScreen::new(config.values().key_bindings().clone()).render(frame, PopupScreenArgs::new(state.popup_message.clone()));
+            PopupScreen::default().render(frame, PopupScreenArgs::new(state.popup_message.clone()));
             state.popup_state = true
         }
     }

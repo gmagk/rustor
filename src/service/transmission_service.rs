@@ -1,7 +1,6 @@
-use std::io::Error;
-use std::process::Command;
 use crate::client::cli_client::CliClient;
 use crate::dto::transmission_dto::{TransmissionResponse, TransmissionTorrent};
+use std::io::Error;
 
 pub struct TransmissionService {}
 
@@ -21,14 +20,14 @@ impl TransmissionService {
     pub fn torrent_list() -> Result<TransmissionResponse, Error> {
         Self::json_to_response(CliClient::run_command("transmission-remote -j -l".parse().unwrap()))
     }
-    // 
-    // pub fn torrent_start(tor_id: String) -> Result<TransmissionResponse, Error> {
-    //     Self::json_to_response(CliClient::run_command(format!("transmission-remote -j -t {} -s", tor_id)))
-    // }
-    // 
-    // pub fn torrent_stop(tor_id: String) -> Result<TransmissionResponse, Error> {
-    //     Self::json_to_response(CliClient::run_command(format!("transmission-remote -j -t {} -S", tor_id)))
-    // }
+
+    pub fn torrent_start(tor_id: String) -> Result<TransmissionResponse, Error> {
+        Self::json_to_response(CliClient::run_command(format!("transmission-remote -j -t {} -s", tor_id)))
+    }
+
+    pub fn torrent_stop(tor_id: String) -> Result<TransmissionResponse, Error> {
+        Self::json_to_response(CliClient::run_command(format!("transmission-remote -j -t {} -S", tor_id)))
+    }
 
     pub fn torrent_reannounce(tor_id: String) -> Result<TransmissionResponse, Error> {
         Self::json_to_response(CliClient::run_command(format!("transmission-remote -j -t {} --reannounce", tor_id)))
@@ -71,7 +70,7 @@ impl TransmissionService {
         let str = source.iter().map(|x| x.to_string()).collect::<String>();
         match serde_json::from_str(str.as_str()) {
             Ok(t) => Ok(t),
-            Err(e) => { Err(Error::other(e)) }
+            Err(e) => { Err(Error::other(format!("Error: {}\nResponse body: {}", e, str.as_str()))) }
         }
     }
 }

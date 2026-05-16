@@ -7,7 +7,7 @@ pub struct Util {}
 
 impl Util {
     pub fn print_bytes(bytes: f64) -> String {
-        let mut res = 0f64;
+        let mut res;
         let mut postfix = "bytes";
         res = bytes;
         if bytes > 1000f64 {

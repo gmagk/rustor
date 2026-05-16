@@ -111,7 +111,7 @@ pub struct TransmissionTorrent {
 
 impl TransmissionTorrent {
     pub fn eta(&self) -> String {
-        if self.left_until_done == 0 {
+        if (self.status == 0 || self.status == 6) && self.left_until_done <= 0 { // status[0] = stopped, status[6] = Seeding
             return "Done".to_string();
         }
 
@@ -129,6 +129,25 @@ impl TransmissionTorrent {
             format!("{days} days {time}")
         } else {
             time
+        }
+    }
+
+    /*
+        TR_STATUS_STOPPED = 0, /* Torrent is stopped */
+        TR_STATUS_CHECK_WAIT = 1, /* Queued to check files */
+        TR_STATUS_CHECK = 2, /* Checking files */
+        TR_STATUS_DOWNLOAD_WAIT = 3, /* Queued to download */
+        TR_STATUS_DOWNLOAD = 4, /* Downloading */
+        TR_STATUS_SEED_WAIT = 5, /* Queued to seed */
+        TR_STATUS_SEED = 6 /* Seeding */
+    */
+    pub fn status(&self) -> String {
+        match self.status {
+            0 => "Stopped".to_string(),
+            2 => "Checking files".to_string(),
+            4 => "Downloading".to_string(),
+            6 => "Seeding".to_string(),
+            _ => "Waiting".to_string(),
         }
     }
 
@@ -182,13 +201,18 @@ impl TransmissionTorrent {
     }
 
     fn calc_percentage_done(&self) -> f64 {
-        if self.left_until_done == 0 {
+        if (self.status == 0 || self.status == 6) && self.left_until_done <= 0 { // status[0] = stopped, status[6] = Seeding
             return 100f64;
         }
 
         let left_undone: f64 = self.left_until_done as f64;
         let total_size: f64 = self.size_when_done as f64;
-        (100f64 - 100f64 * left_undone / total_size) % 100f64
+        let res = (100f64 - 100f64 * left_undone / total_size) % 100f64;
+        if res.is_nan() {
+            return 0f64;
+        }
+
+        res
     }
 }
 

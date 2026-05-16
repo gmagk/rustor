@@ -40,7 +40,9 @@ pub enum ConfigKeyBindingKey {
     KbOpen,
     KbQuit,
     KbReAnn,
-    KbSearch
+    KbSearch,
+    KbStop,
+    KbStart
 }
 
 impl Config {
@@ -75,18 +77,20 @@ impl Config {
                 Ok(ConfigValues::default())
             }.unwrap();
 
-        // Add key bindings missing from config file
+        // Use default key bindings for those not set in config file.
         let mut default_key_bindings = HashMap::new();
-        default_key_bindings.insert(ConfigKeyBindingKey::KbAdd, 'a');
+        default_key_bindings.insert(ConfigKeyBindingKey::KbAdd, 'p');
         default_key_bindings.insert(ConfigKeyBindingKey::KbDel, 'd');
         default_key_bindings.insert(ConfigKeyBindingKey::KbDownload, 'd');
-        default_key_bindings.insert(ConfigKeyBindingKey::KbInfo, 'i');
+        default_key_bindings.insert(ConfigKeyBindingKey::KbInfo, 't');
         default_key_bindings.insert(ConfigKeyBindingKey::KbHelp, 'h');
         default_key_bindings.insert(ConfigKeyBindingKey::KbHome, 'b');
-        default_key_bindings.insert(ConfigKeyBindingKey::KbOpen, 'm');
+        default_key_bindings.insert(ConfigKeyBindingKey::KbOpen, 'o');
         default_key_bindings.insert(ConfigKeyBindingKey::KbQuit, 'q');
         default_key_bindings.insert(ConfigKeyBindingKey::KbReAnn, 'r');
-        default_key_bindings.insert(ConfigKeyBindingKey::KbSearch, 'g');
+        default_key_bindings.insert(ConfigKeyBindingKey::KbSearch, 'f');
+        default_key_bindings.insert(ConfigKeyBindingKey::KbStart, 's');
+        default_key_bindings.insert(ConfigKeyBindingKey::KbStop, 'x');
         let mut missing_key_bindings: HashMap<ConfigKeyBindingKey, char> = HashMap::new();
         default_key_bindings.iter().for_each(|(k, v)| {
             match values.key_bindings.iter().find(| (key, _) | **key == *k) {

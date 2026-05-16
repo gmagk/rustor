@@ -130,29 +130,23 @@ impl SearchResScreen {
                 &torrent.name,
                 &torrent.seeders.to_string(),
                 &torrent.leechers.to_string(),
-                &Util::print_epoch(torrent.created_on as u64),
                 &Util::print_bytes(torrent.size as f64),
-                &torrent.source.to_string(),
-                &torrent.info_hash
+                &torrent.source.to_string()
             ];
             item.into_iter()
-                .map(|content| Cell::from(Text::from(format!("\n{content}\n"))))
+                .map(|content| Cell::from(format!("{content}")))
                 .collect::<Row>()
-                .height(3)
         });
         let header = [
                 "Id",
                 "Name",
                 "Seeders",
                 "Leechers",
-                "Created On",
                 "Size",
-                "Source",
-                "Info Hash"
+                "Source"
             ].into_iter()
             .map(Cell::from)
             .collect::<Row>()
-            .height(1)
             .bg(Color::Indexed(236)) // https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
             .fg(Color::Indexed(255));
         let selected_row_style = Style::default()
@@ -167,10 +161,8 @@ impl SearchResScreen {
                 Constraint::Length(self.name_len(&torrents) + 1),
                 Constraint::Length(8),
                 Constraint::Length(8),
-                Constraint::Length(20),
                 Constraint::Length(10),
-                Constraint::Length(16),
-                Constraint::Length(41)
+                Constraint::Length(16)
             ],
         ).header(header)
         .row_highlight_style(selected_row_style)
