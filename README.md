@@ -14,7 +14,7 @@
 ---
 
 # About
-A simple torrent TUI for Linux (tested only on Ubuntu 25.10).  
+A simple torrent TUI for Linux.  
 Uses [transmission-remote](https://transmissionbt.com) API and is written in Rust using Ratatui.
 
 # Built With
